@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { Player, RoomState } from '../types.ts'
 import { MAX_PLAYERS } from '../types.ts'
+import type { Player, RoomState } from '../types.ts'
 import { normalizeRoomCode } from '../format.ts'
+import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 
 export function LobbyScreen({
   name,
@@ -9,6 +10,7 @@ export function LobbyScreen({
   joinCode,
   onJoinCodeChange,
   room,
+  storedRoomCode = null,
   playerId,
   error,
   busy,
@@ -22,6 +24,7 @@ export function LobbyScreen({
   joinCode: string
   onJoinCodeChange: (value: string) => void
   room: RoomState | null
+  storedRoomCode?: string | null
   playerId: string
   error: string | null
   busy: boolean
@@ -34,6 +37,7 @@ export function LobbyScreen({
   const isHost = room?.host_id === playerId
   const players: Player[] = room?.players ?? []
   const inRoom = Boolean(room)
+  const canLeave = Boolean(room || storedRoomCode)
 
   async function copyCode() {
     if (!room) return
@@ -180,11 +184,7 @@ export function LobbyScreen({
           <p className="text-center text-sm text-zinc-500">Warte, bis der Host startet …</p>
         )}
 
-        {inRoom && (
-          <button type="button" onClick={onLeave} className="text-sm text-zinc-500 underline-offset-4 hover:underline">
-            Raum verlassen
-          </button>
-        )}
+        {canLeave && <LeaveRoomButton onLeave={onLeave} />}
       </form>
     </div>
   )

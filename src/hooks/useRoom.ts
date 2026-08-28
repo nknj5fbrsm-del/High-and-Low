@@ -197,6 +197,7 @@ export function useRoom() {
   const leaveRoom = useCallback(() => {
     setRoom(null)
     setError(null)
+    setRestoring(false)
     setIdentity(saveIdentity({ roomCode: null }))
   }, [])
 

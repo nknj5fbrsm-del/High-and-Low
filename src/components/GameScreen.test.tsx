@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { GameScreen } from './GameScreen.tsx'
 import type { RoomState } from '../types.ts'
 import { DECK } from '../deck.ts'
@@ -25,7 +25,7 @@ const room: RoomState = {
 
 describe('GameScreen', () => {
   it('zeigt eigenen Zug mit großen Buttons', () => {
-    render(<GameScreen room={room} playerId="p1" busy={false} error={null} onGuess={() => {}} />)
+    render(<GameScreen room={room} playerId="p1" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
     expect(screen.getByText('Du bist dran!')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'HÖHER' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'NIEDRIGER' })).toBeEnabled()
@@ -53,6 +53,7 @@ describe('GameScreen', () => {
         busy={false}
         error={null}
         onGuess={() => {}}
+        onLeave={() => {}}
       />,
     )
     expect(screen.getByText('Richtig!')).toBeInTheDocument()
@@ -61,7 +62,7 @@ describe('GameScreen', () => {
   })
 
   it('versteckt die Buttons, wenn jemand anderes dran ist', () => {
-    render(<GameScreen room={room} playerId="p2" busy={false} error={null} onGuess={() => {}} />)
+    render(<GameScreen room={room} playerId="p2" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
     expect(screen.getByText('Warten auf Max…')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
   })
@@ -85,10 +86,29 @@ describe('GameScreen', () => {
         busy={false}
         error={null}
         onGuess={() => {}}
+        onLeave={() => {}}
       />,
     )
     expect(screen.getByText('Falsch!')).toBeInTheDocument()
     expect(screen.getByText('1.500 kg')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
+  })
+
+  it('hat einen sichtbaren Button Raum verlassen', () => {
+    const onLeave = vi.fn()
+    render(
+      <GameScreen
+        room={room}
+        playerId="p1"
+        busy={false}
+        error={null}
+        onGuess={() => {}}
+        onLeave={onLeave}
+      />,
+    )
+    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    expect(leave).toHaveClass('h-14')
+    fireEvent.click(leave)
+    expect(onLeave).toHaveBeenCalledOnce()
   })
 })

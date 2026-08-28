@@ -1,4 +1,5 @@
 import { Lives } from './GameHeader.tsx'
+import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 
 export function GameOverScreen({
   streak,
@@ -6,12 +7,14 @@ export function GameOverScreen({
   busy,
   error,
   onRestart,
+  onLeave,
 }: {
   streak: number
   roomCode: string
   busy: boolean
   error: string | null
   onRestart: () => void
+  onLeave: () => void
 }) {
   return (
     <div className="flex min-h-dvh flex-col items-stretch px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
@@ -39,6 +42,9 @@ export function GameOverScreen({
       >
         Neues Spiel starten
       </button>
+      <div className="mt-3">
+        <LeaveRoomButton onLeave={onLeave} />
+      </div>
     </div>
   )
 }
