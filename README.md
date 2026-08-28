@@ -80,5 +80,5 @@ npm test         # Unit- und UI-Tests
 
 ## Hinweise
 
-- Der Raumcode ist das „Passwort“. Wer ihn kennt, kann den Raum lesen; Mutationen laufen serverseitig (RPC + Zug-Nonce), damit ein Doppel-Tipp denselben Zug nicht zweimal auflöst.
+- Der Raumcode ist das „Passwort“. Wer ihn kennt, kann den Raum lesen; Mutationen laufen serverseitig (RPC + Zug-Nonce), damit ein Doppel-Tipp denselben Zug nicht zweimal auflöst. Realtime braucht ein `SELECT` auf `rooms` — es gibt keine Listen-UI, aber die REST-API kann bei bekanntem Anon-Key grundsätzlich Zeilen lesen. Für einen Abend unter Freunden reicht das.
 - Keine Accounts, kein Chat, kein Timer – absichtlich nicht.

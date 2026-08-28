@@ -1,15 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { isGameOverScreen } from './appFlow.ts'
 import { GameOverScreen } from './components/GameOverScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
 import { LobbyScreen } from './components/LobbyScreen.tsx'
 import { SetupScreen } from './components/SetupScreen.tsx'
 import { useRoom } from './hooks/useRoom.ts'
 import { isSupabaseConfigured } from './lib/supabase.ts'
+import { REVEAL_MS } from './types.ts'
 
 export default function App() {
   const game = useRoom()
   const [name, setName] = useState(game.identity.name)
   const [joinCode, setJoinCode] = useState('')
+  const [finishedNonce, setFinishedNonce] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (game.room?.game_status !== 'game_over') return
+    const nonce = game.room.turn_nonce
+    const timer = window.setTimeout(() => setFinishedNonce(nonce), REVEAL_MS)
+    return () => window.clearTimeout(timer)
+  }, [game.room?.game_status, game.room?.turn_nonce])
 
   if (!isSupabaseConfigured) {
     return <SetupScreen />
@@ -44,7 +54,7 @@ export default function App() {
     )
   }
 
-  if (status === 'game_over') {
+  if (isGameOverScreen(status, game.room.turn_nonce, finishedNonce)) {
     return (
       <GameOverScreen
         streak={game.room.streak}

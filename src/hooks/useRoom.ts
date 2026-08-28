@@ -90,15 +90,16 @@ export function useRoom() {
     if (!supabase || !room?.room_code) return
 
     const client = supabase
+    const code = room.room_code
     const channel = client
-      .channel(`room:${room.room_code}`)
+      .channel(`room:${code}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'rooms',
-          filter: `room_code=eq.${room.room_code}`,
+          filter: `room_code=eq.${code}`,
         },
         (payload) => {
           if (payload.new && typeof payload.new === 'object') {
@@ -106,7 +107,21 @@ export function useRoom() {
           }
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          void client
+            .from('rooms')
+            .select('*')
+            .eq('room_code', code)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data) setRoom(asRoom(data))
+            })
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setError('Realtime-Verbindung unterbrochen. Seite neu laden.')
+        }
+      })
 
     return () => {
       void client.removeChannel(channel)

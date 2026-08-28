@@ -65,4 +65,30 @@ describe('GameScreen', () => {
     expect(screen.getByText('Warten auf Max…')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
   })
+
+  it('zeigt die rote Auflösung beim letzten Fehlversuch', () => {
+    render(
+      <GameScreen
+        room={{
+          ...room,
+          lives: 0,
+          game_status: 'game_over',
+          last_result: {
+            correct: false,
+            guess: 'lower',
+            card: DECK[1],
+            reference: DECK[0],
+          },
+          turn_nonce: 3,
+        }}
+        playerId="p1"
+        busy={false}
+        error={null}
+        onGuess={() => {}}
+      />,
+    )
+    expect(screen.getByText('Falsch!')).toBeInTheDocument()
+    expect(screen.getByText('1.500 kg')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
+  })
 })

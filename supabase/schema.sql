@@ -360,6 +360,9 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Raum nicht gefunden.';
   END IF;
+  IF r.game_status = 'playing' THEN
+    RETURN to_jsonb(r);
+  END IF;
   IF r.host_id IS DISTINCT FROM p_player_id THEN
     RAISE EXCEPTION 'Nur der Host kann das Spiel starten.';
   END IF;
@@ -535,6 +538,10 @@ BEGIN
     RAISE EXCEPTION 'Du bist nicht in diesem Raum.';
   END IF;
 
+  IF r.game_status = 'playing' THEN
+    RETURN to_jsonb(r);
+  END IF;
+
   IF r.game_status IS DISTINCT FROM 'game_over' THEN
     RAISE EXCEPTION 'Neues Spiel geht erst nach Game Over.';
   END IF;
@@ -566,6 +573,8 @@ BEGIN
   RETURN to_jsonb(r);
 END;
 $$;
+
+ALTER TABLE rooms REPLICA IDENTITY FULL;
 
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fact_cards ENABLE ROW LEVEL SECURITY;
