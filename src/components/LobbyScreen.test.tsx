@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { LobbyScreen } from './LobbyScreen.tsx'
 import type { RoomState } from '../types.ts'
 
@@ -110,5 +110,58 @@ describe('LobbyScreen', () => {
       />,
     )
     expect(screen.getByText('Dieser Raum ist voll (max. 3 Spieler).')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Raum verlassen' })).not.toBeInTheDocument()
+  })
+
+  it('lässt den Raum aus der Lobby mit sichtbarem Button verlassen', () => {
+    const onLeave = vi.fn()
+    render(
+      <LobbyScreen
+        name="Max"
+        onNameChange={noop}
+        joinCode=""
+        onJoinCodeChange={noop}
+        room={twoPlayers}
+        storedRoomCode="WXYZ"
+        playerId="p1"
+        error={null}
+        busy={false}
+        onCreate={noop}
+        onJoin={noop}
+        onStart={noop}
+        onLeave={onLeave}
+      />,
+    )
+    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    expect(leave).toHaveClass('h-14')
+    fireEvent.click(leave)
+    expect(onLeave).toHaveBeenCalledOnce()
+  })
+
+  it('zeigt Raum verlassen wenn Restore fehlschlug (room null, roomCode gesetzt)', () => {
+    const onLeave = vi.fn()
+    render(
+      <LobbyScreen
+        name="Nils"
+        onNameChange={noop}
+        joinCode=""
+        onJoinCodeChange={noop}
+        room={null}
+        storedRoomCode="ABCD"
+        playerId="p1"
+        error="Keine Verbindung. Prüfe Netz und Supabase-URL."
+        busy={false}
+        onCreate={noop}
+        onJoin={noop}
+        onStart={noop}
+        onLeave={onLeave}
+      />,
+    )
+    expect(screen.getByText('Keine Verbindung. Prüfe Netz und Supabase-URL.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument()
+    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    expect(leave).toHaveClass('h-14')
+    fireEvent.click(leave)
+    expect(onLeave).toHaveBeenCalledOnce()
   })
 })

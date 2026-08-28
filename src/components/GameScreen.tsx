@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FactCardView } from './FactCardView.tsx'
 import { GameHeader } from './GameHeader.tsx'
+import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 import { isMyTurn } from '../gameLogic.ts'
 import { REVEAL_MS } from '../types.ts'
 import type { Guess, RoomState } from '../types.ts'
@@ -11,12 +12,14 @@ export function GameScreen({
   busy,
   error,
   onGuess,
+  onLeave,
 }: {
   room: RoomState
   playerId: string
   busy: boolean
   error: string | null
   onGuess: (guess: Guess) => void
+  onLeave: () => void
 }) {
   const [revealDoneFor, setRevealDoneFor] = useState<number | null>(null)
   const mine = isMyTurn(room, playerId)
@@ -35,8 +38,9 @@ export function GameScreen({
 
   if (!reference || !mystery) {
     return (
-      <div className="flex min-h-dvh items-center justify-center px-6 text-zinc-400">
-        Karten werden vorbereitet …
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6">
+        <p className="text-zinc-400">Karten werden vorbereitet …</p>
+        <LeaveRoomButton onLeave={onLeave} />
       </div>
     )
   }
@@ -95,6 +99,10 @@ export function GameScreen({
           </button>
         </div>
       )}
+
+      <div className="mt-4">
+        <LeaveRoomButton onLeave={onLeave} />
+      </div>
     </div>
   )
 }

@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { isGameOverScreen } from './appFlow.ts'
 import { GameOverScreen } from './components/GameOverScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
+import { LeaveRoomButton } from './components/LeaveRoomButton.tsx'
 import { LobbyScreen } from './components/LobbyScreen.tsx'
 import { SetupScreen } from './components/SetupScreen.tsx'
 import { useRoom } from './hooks/useRoom.ts'
 import { isSupabaseConfigured } from './lib/supabase.ts'
 import { REVEAL_MS } from './types.ts'
 
-export default function App() {
-  const game = useRoom()
+type GameSession = ReturnType<typeof useRoom>
+
+export function AppView({ game }: { game: GameSession }) {
   const [name, setName] = useState(game.identity.name)
   const [joinCode, setJoinCode] = useState('')
   const [finishedNonce, setFinishedNonce] = useState<number | null>(null)
@@ -21,14 +23,11 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [game.room?.game_status, game.room?.turn_nonce])
 
-  if (!isSupabaseConfigured) {
-    return <SetupScreen />
-  }
-
   if (game.restoring) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm font-medium text-zinc-400">
-        Verbinde mit dem Raum …
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-5">
+        <p className="text-sm font-medium text-zinc-400">Verbinde mit dem Raum …</p>
+        <LeaveRoomButton onLeave={game.leaveRoom} />
       </div>
     )
   }
@@ -43,6 +42,7 @@ export default function App() {
         joinCode={joinCode}
         onJoinCodeChange={setJoinCode}
         room={game.room}
+        storedRoomCode={game.identity.roomCode}
         playerId={game.playerId}
         error={game.error}
         busy={game.busy}
@@ -62,6 +62,7 @@ export default function App() {
         busy={game.busy}
         error={game.error}
         onRestart={() => void game.restartGame()}
+        onLeave={game.leaveRoom}
       />
     )
   }
@@ -73,6 +74,17 @@ export default function App() {
       busy={game.busy}
       error={game.error}
       onGuess={(guess) => void game.submitGuess(guess)}
+      onLeave={game.leaveRoom}
     />
   )
+}
+
+export default function App() {
+  const game = useRoom()
+
+  if (!isSupabaseConfigured) {
+    return <SetupScreen />
+  }
+
+  return <AppView game={game} />
 }
