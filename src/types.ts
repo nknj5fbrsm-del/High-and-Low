@@ -1,11 +1,22 @@
 export type Guess = 'higher' | 'lower'
 export type GameStatus = 'lobby' | 'playing' | 'game_over'
+export type GameMode = 'adult' | 'kids'
+export type Axis =
+  | 'weight'
+  | 'price'
+  | 'height'
+  | 'distance'
+  | 'year'
+  | 'speed'
+  | 'temp'
+  | 'count'
 
 export interface FactCard {
   id: string
   title: string
   value: number
   unit: string
+  axis: Axis
 }
 
 export interface Player {
@@ -21,6 +32,8 @@ export interface LastResult {
   resolved_at?: string
 }
 
+export type ModeVotes = Record<string, GameMode>
+
 export interface RoomState {
   room_code: string
   players: Player[]
@@ -35,6 +48,9 @@ export interface RoomState {
   game_status: GameStatus
   last_result: LastResult | null
   turn_nonce: number
+  max_players: number
+  votes: ModeVotes
+  selected_mode: GameMode
 }
 
 export interface DealResult {
@@ -43,6 +59,9 @@ export interface DealResult {
   remaining: FactCard[]
 }
 
-export const MAX_PLAYERS = 3
+export const MIN_PLAYERS = 2
+export const MAX_PLAYERS = 6
+export const DEFAULT_PLAYERS = 3
 export const MAX_LIVES = 3
+export const KIDS_LIVES = 5
 export const REVEAL_MS = 1700

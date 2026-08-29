@@ -2,10 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { GameOverScreen } from './GameOverScreen.tsx'
 
 describe('GameOverScreen', () => {
-  it('zeigt Streak und Neustart', () => {
+  it('zeigt Streak, Titel und Neustart', () => {
     render(
       <GameOverScreen
         streak={14}
+        maxLives={3}
         roomCode="ABCD"
         busy={false}
         error={null}
@@ -15,6 +16,7 @@ describe('GameOverScreen', () => {
     )
     expect(screen.getByText('Game Over')).toBeInTheDocument()
     expect(screen.getByText('🔥 14')).toBeInTheDocument()
+    expect(screen.getByText('Team im Flow')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Neues Spiel starten' })).toBeEnabled()
   })
 
@@ -23,6 +25,7 @@ describe('GameOverScreen', () => {
     render(
       <GameOverScreen
         streak={14}
+        maxLives={3}
         roomCode="ABCD"
         busy={false}
         error={null}

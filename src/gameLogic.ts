@@ -27,6 +27,10 @@ export function cardsOfUnit(cards: FactCard[], unit: string): FactCard[] {
   return cards.filter((card) => card.unit === unit)
 }
 
+export function cardsOfAxis(cards: FactCard[], axis: string): FactCard[] {
+  return cards.filter((card) => card.axis === axis)
+}
+
 export function withoutIds(cards: FactCard[], ids: string[]): FactCard[] {
   const skip = new Set(ids)
   return cards.filter((card) => !skip.has(card.id))
@@ -35,7 +39,7 @@ export function withoutIds(cards: FactCard[], ids: string[]): FactCard[] {
 export function canFormOpeningPair(cards: FactCard[]): boolean {
   const counts = new Map<string, number>()
   for (const card of cards) {
-    counts.set(card.unit, (counts.get(card.unit) ?? 0) + 1)
+    counts.set(card.axis, (counts.get(card.axis) ?? 0) + 1)
   }
   return [...counts.values()].some((count) => count >= 2)
 }
@@ -62,13 +66,13 @@ export function dealOpeningPair(
   pool: FactCard[],
   pick: CardPick = pickRandom,
 ): DealResult | null {
-  const units = [...new Set(pool.map((card) => card.unit))]
-  const viable = units.filter((unit) => cardsOfUnit(pool, unit).length >= 2)
+  const axes = [...new Set(pool.map((card) => card.axis))]
+  const viable = axes.filter((axis) => cardsOfAxis(pool, axis).length >= 2)
   if (viable.length === 0) return null
 
-  const unitCards = viable.map((unit) => cardsOfUnit(pool, unit)[0])
-  const chosenUnit = pick(unitCards).unit
-  const group = cardsOfUnit(pool, chosenUnit)
+  const axisCards = viable.map((axis) => cardsOfAxis(pool, axis)[0])
+  const chosenAxis = pick(axisCards).axis
+  const group = cardsOfAxis(pool, chosenAxis)
   const current = pick(group)
   const next = pick(group.filter((card) => card.id !== current.id))
   return {
@@ -84,13 +88,13 @@ export function dealAfterReference(
   reference: FactCard,
   pick: CardPick = pickRandom,
 ): DealResult {
-  const sameUnit = cardsOfUnit(
+  const sameAxis = cardsOfAxis(
     remaining.filter((card) => card.id !== reference.id),
-    reference.unit,
+    reference.axis,
   )
 
-  if (sameUnit.length > 0) {
-    const next = pick(sameUnit)
+  if (sameAxis.length > 0) {
+    const next = pick(sameAxis)
     return {
       current: reference,
       next,

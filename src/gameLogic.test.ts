@@ -1,7 +1,7 @@
-import { DECK, unitsInDeck } from './deck.ts'
+import { ADULT_DECK, KIDS_DECK, axesInDeck } from './deck.ts'
 import {
   canFormOpeningPair,
-  cardsOfUnit,
+  cardsOfAxis,
   dealAfterReference,
   dealOpeningPair,
   isGuessCorrect,
@@ -11,19 +11,21 @@ import {
   usedIdsFrom,
 } from './gameLogic.ts'
 import { MAX_LIVES } from './types.ts'
-import type { FactCard } from './types.ts'
+import type { Axis, FactCard } from './types.ts'
 
 const kg = (id: string, value: number): FactCard => ({
   id,
   title: id,
   value,
   unit: 'kg',
+  axis: 'weight',
 })
 const m = (id: string, value: number): FactCard => ({
   id,
   title: id,
   value,
   unit: 'm',
+  axis: 'height',
 })
 
 const miniDeck: FactCard[] = [
@@ -35,18 +37,30 @@ const miniDeck: FactCard[] = [
 ]
 
 describe('Deck', () => {
-  it('hat mindestens 25 Karten', () => {
-    expect(DECK.length).toBeGreaterThanOrEqual(25)
+  it('hat mindestens 80 Erwachsenen- und 40 Kinderkarten', () => {
+    expect(ADULT_DECK.length).toBeGreaterThanOrEqual(80)
+    expect(KIDS_DECK.length).toBeGreaterThanOrEqual(40)
   })
 
-  it('hat einzigartige IDs', () => {
-    const ids = DECK.map((card) => card.id)
+  it('hat einzigartige IDs über beide Stapel', () => {
+    const ids = [...ADULT_DECK, ...KIDS_DECK].map((card) => card.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('hat pro Einheit mindestens 2 Karten (fairer Vergleich)', () => {
-    for (const unit of unitsInDeck()) {
-      expect(cardsOfUnit(DECK, unit).length).toBeGreaterThanOrEqual(2)
+  it('hat pro Achse mindestens 2 Karten und eine Einheit', () => {
+    for (const deck of [ADULT_DECK, KIDS_DECK]) {
+      for (const axis of axesInDeck(deck)) {
+        const group = cardsOfAxis(deck, axis)
+        expect(group.length).toBeGreaterThanOrEqual(2)
+        expect(new Set(group.map((card) => card.unit)).size).toBe(1)
+      }
+    }
+  })
+
+  it('hat für jede Karte eine Achse', () => {
+    const axes: Axis[] = ['weight', 'price', 'height', 'distance', 'year', 'speed', 'temp', 'count']
+    for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
+      expect(axes).toContain(card.axis)
     }
   })
 })
@@ -73,10 +87,10 @@ describe('isGuessCorrect', () => {
 })
 
 describe('dealOpeningPair', () => {
-  it('zieht Referenz und nächste Karte derselben Einheit', () => {
+  it('zieht Referenz und nächste Karte derselben Achse', () => {
     const deal = dealOpeningPair(miniDeck, pickFirst)
     expect(deal).not.toBeNull()
-    expect(deal?.current.unit).toBe(deal?.next.unit)
+    expect(deal?.current.axis).toBe(deal?.next.axis)
     expect(deal?.current.id).not.toBe(deal?.next.id)
     expect(deal?.remaining).toHaveLength(miniDeck.length - 2)
   })

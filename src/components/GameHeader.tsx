@@ -1,7 +1,11 @@
-export function Lives({ lives }: { lives: number }) {
-  const icons = [0, 1, 2].map((index) => (index < lives ? '❤️' : '💔'))
+export function Lives({ lives, maxLives }: { lives: number; maxLives: number }) {
+  const total = Math.max(1, maxLives)
+  const icons = Array.from({ length: total }, (_, index) => (index < lives ? '❤️' : '💔'))
   return (
-    <span className="text-lg tracking-tight" aria-label={`${lives} von 3 Leben`}>
+    <span
+      className={`tracking-tight ${total > 3 ? 'text-sm' : 'text-lg'}`}
+      aria-label={`${lives} von ${total} Leben`}
+    >
       {icons.join(' ')}
     </span>
   )
@@ -10,10 +14,12 @@ export function Lives({ lives }: { lives: number }) {
 export function GameHeader({
   streak,
   lives,
+  maxLives,
   roomCode,
 }: {
   streak: number
   lives: number
+  maxLives: number
   roomCode: string
 }) {
   return (
@@ -28,7 +34,7 @@ export function GameHeader({
         <p className="font-display text-2xl font-extrabold text-amber-300" aria-label={`Streak ${streak}`}>
           🔥 {streak}
         </p>
-        <Lives lives={lives} />
+        <Lives lives={lives} maxLives={maxLives} />
       </div>
     </header>
   )

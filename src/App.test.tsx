@@ -23,6 +23,9 @@ const playingRoom: RoomState = {
   game_status: 'playing',
   last_result: null,
   turn_nonce: 2,
+  max_players: 3,
+  votes: {},
+  selected_mode: 'adult',
 }
 
 const gameOverRoom: RoomState = {
@@ -66,6 +69,7 @@ function LeaveHarness({
     createRoom: async () => undefined,
     joinRoom: async () => undefined,
     startGame: async () => undefined,
+    voteMode: async () => undefined,
     submitGuess: async () => undefined,
     restartGame: async () => undefined,
     leaveRoom: () => {

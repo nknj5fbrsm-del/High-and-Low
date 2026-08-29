@@ -8,6 +8,12 @@ describe('formatValue', () => {
   it('lässt Jahre unformatiert', () => {
     expect(formatValue(1989, 'Jahr')).toBe('1989')
   })
+
+  it('formatiert Euro und Temperatur', () => {
+    expect(formatValue(999, '€')).toBe('999 €')
+    expect(formatValue(-63, '°C')).toBe('-63 °C')
+    expect(formatValue(0.02, 'kg')).toBe('0,02 kg')
+  })
 })
 
 describe('normalizeRoomCode', () => {

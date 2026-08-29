@@ -1,8 +1,10 @@
+import { streakTitle } from '../axis.ts'
 import { Lives } from './GameHeader.tsx'
 import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 
 export function GameOverScreen({
   streak,
+  maxLives,
   roomCode,
   busy,
   error,
@@ -10,6 +12,7 @@ export function GameOverScreen({
   onLeave,
 }: {
   streak: number
+  maxLives: number
   roomCode: string
   busy: boolean
   error: string | null
@@ -27,8 +30,11 @@ export function GameOverScreen({
       <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/80 px-6 py-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Finaler Streak</p>
         <p className="font-display mt-3 text-7xl font-extrabold text-amber-300">🔥 {streak}</p>
+        <p className="mt-4 inline-block rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.16em] text-amber-200">
+          {streakTitle(streak)}
+        </p>
         <div className="mt-5">
-          <Lives lives={0} />
+          <Lives lives={0} maxLives={maxLives} />
         </div>
       </div>
 

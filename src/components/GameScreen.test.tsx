@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { GameScreen } from './GameScreen.tsx'
 import type { RoomState } from '../types.ts'
-import { DECK } from '../deck.ts'
+import { ADULT_DECK } from '../deck.ts'
+import { formatCardValue } from '../format.ts'
+
+const weightRef = ADULT_DECK.find((card) => card.id === 'mensch')!
+const weightNext = ADULT_DECK.find((card) => card.id === 'nilpferd')!
+const yearRef = ADULT_DECK.find((card) => card.id === 'mauerfall')!
+const yearNext = ADULT_DECK.find((card) => card.id === 'chatgpt')!
 
 const room: RoomState = {
   room_code: 'ABCD',
@@ -14,38 +20,57 @@ const room: RoomState = {
   current_player_index: 0,
   lives: 3,
   streak: 14,
-  current_card: DECK[0],
-  next_card: DECK[1],
-  remaining_cards: DECK.slice(2),
-  used_card_ids: [DECK[0].id, DECK[1].id],
+  current_card: weightRef,
+  next_card: weightNext,
+  remaining_cards: [],
+  used_card_ids: [weightRef.id, weightNext.id],
   game_status: 'playing',
   last_result: null,
   turn_nonce: 1,
+  max_players: 3,
+  votes: {},
+  selected_mode: 'adult',
 }
 
 describe('GameScreen', () => {
-  it('zeigt eigenen Zug mit großen Buttons', () => {
+  it('zeigt eigenen Zug mit Labels aus der Achse', () => {
     render(<GameScreen room={room} playerId="p1" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
     expect(screen.getByText('Du bist dran!')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'HÖHER' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'NIEDRIGER' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'SCHWERER' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'LEICHTER' })).toBeEnabled()
     expect(screen.getByText('🔥 14')).toBeInTheDocument()
-    expect(screen.getByText(DECK[0].title)).toBeInTheDocument()
-    expect(screen.getByText(DECK[1].title)).toBeInTheDocument()
+    expect(screen.getByText(weightRef.title)).toBeInTheDocument()
+    expect(screen.getByText(weightNext.title)).toBeInTheDocument()
     expect(screen.getByText('???')).toBeInTheDocument()
-    expect(screen.queryByText('1.500 kg')).not.toBeInTheDocument()
+    expect(screen.queryByText(formatCardValue(weightNext))).not.toBeInTheDocument()
   })
 
-  it('zeigt den aufgedeckten Wert nach einem Tipp', () => {
+  it('nutzt Jahres-Labels für den aktuellen Vergleich', () => {
+    render(
+      <GameScreen
+        room={{ ...room, current_card: yearRef, next_card: yearNext }}
+        playerId="p1"
+        busy={false}
+        error={null}
+        onGuess={() => {}}
+        onLeave={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'SPÄTER' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'FRÜHER' })).toBeEnabled()
+  })
+
+  it('zeigt den aufgedeckten Wert und die Belohnung nach einem richtigen Tipp', () => {
     render(
       <GameScreen
         room={{
           ...room,
+          streak: 5,
           last_result: {
             correct: true,
             guess: 'higher',
-            card: DECK[1],
-            reference: DECK[0],
+            card: weightNext,
+            reference: weightRef,
           },
           turn_nonce: 2,
         }}
@@ -57,14 +82,41 @@ describe('GameScreen', () => {
       />,
     )
     expect(screen.getByText('Richtig!')).toBeInTheDocument()
-    expect(screen.getByText('1.500 kg')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
+    expect(screen.getByText('+1')).toBeInTheDocument()
+    expect(screen.getByText('Combo ×5')).toBeInTheDocument()
+    expect(screen.getByText(formatCardValue(weightNext))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
+  })
+
+  it('zeigt keine Belohnung bei einem Fehlversuch', () => {
+    render(
+      <GameScreen
+        room={{
+          ...room,
+          last_result: {
+            correct: false,
+            guess: 'lower',
+            card: weightNext,
+            reference: weightRef,
+          },
+          turn_nonce: 2,
+        }}
+        playerId="p1"
+        busy={false}
+        error={null}
+        onGuess={() => {}}
+        onLeave={() => {}}
+      />,
+    )
+    expect(screen.getByText('Falsch!')).toBeInTheDocument()
+    expect(screen.queryByText('+1')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Combo/)).not.toBeInTheDocument()
   })
 
   it('versteckt die Buttons, wenn jemand anderes dran ist', () => {
     render(<GameScreen room={room} playerId="p2" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
     expect(screen.getByText('Warten auf Max…')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
   })
 
   it('zeigt die rote Auflösung beim letzten Fehlversuch', () => {
@@ -77,8 +129,8 @@ describe('GameScreen', () => {
           last_result: {
             correct: false,
             guess: 'lower',
-            card: DECK[1],
-            reference: DECK[0],
+            card: weightNext,
+            reference: weightRef,
           },
           turn_nonce: 3,
         }}
@@ -90,8 +142,8 @@ describe('GameScreen', () => {
       />,
     )
     expect(screen.getByText('Falsch!')).toBeInTheDocument()
-    expect(screen.getByText('1.500 kg')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'HÖHER' })).not.toBeInTheDocument()
+    expect(screen.getByText(formatCardValue(weightNext))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
   })
 
   it('hat einen sichtbaren Button Raum verlassen', () => {
