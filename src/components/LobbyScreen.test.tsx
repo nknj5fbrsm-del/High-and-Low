@@ -19,6 +19,9 @@ const twoPlayers: RoomState = {
   game_status: 'lobby',
   last_result: null,
   turn_nonce: 0,
+  max_players: 3,
+  votes: {},
+  selected_mode: 'adult',
 }
 
 const fullRoom: RoomState = {
@@ -28,64 +31,67 @@ const fullRoom: RoomState = {
 
 const noop = () => {}
 
+const lobbyProps = {
+  onNameChange: noop,
+  joinCode: '',
+  onJoinCodeChange: noop,
+  error: null as string | null,
+  busy: false,
+  onCreate: noop,
+  onJoin: noop,
+  onStart: noop,
+  onVote: noop,
+  onLeave: noop,
+}
+
 describe('LobbyScreen', () => {
   it('zeigt 2/3 Spieler ohne Start-Button', () => {
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Max"
-        onNameChange={noop}
-        joinCode=""
-        onJoinCodeChange={noop}
         room={twoPlayers}
         playerId="p1"
-        error={null}
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
-        onLeave={noop}
       />,
     )
     expect(screen.getByText('Spieler 2/3')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Spiel starten' })).not.toBeInTheDocument()
+    expect(screen.getByText('Noch 1 Platz frei.')).toBeInTheDocument()
   })
 
-  it('gibt dem Host den Start-Button bei 3/3', () => {
+  it('gibt dem Host den Start-Button bei voller Spielerzahl', () => {
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Max"
-        onNameChange={noop}
-        joinCode=""
-        onJoinCodeChange={noop}
         room={fullRoom}
         playerId="p1"
-        error={null}
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
-        onLeave={noop}
       />,
     )
     expect(screen.getByText('Spieler 3/3')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Spiel starten' })).toBeEnabled()
   })
 
+  it('startet bei 2/2, wenn der Host zwei Spieler gewählt hat', () => {
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Max"
+        room={{ ...twoPlayers, max_players: 2 }}
+        playerId="p1"
+      />,
+    )
+    expect(screen.getByText('Spieler 2/2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Spiel starten' })).toBeEnabled()
+  })
+
   it('zeigt dem Nicht-Host keinen Start-Button', () => {
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Nils"
-        onNameChange={noop}
-        joinCode=""
-        onJoinCodeChange={noop}
         room={fullRoom}
         playerId="p2"
-        error={null}
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
-        onLeave={noop}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Spiel starten' })).not.toBeInTheDocument()
@@ -95,21 +101,15 @@ describe('LobbyScreen', () => {
   it('lehnt einen vollen Raum über die Fehlermeldung ab', () => {
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Gast"
-        onNameChange={noop}
         joinCode="WXYZ"
-        onJoinCodeChange={noop}
         room={null}
         playerId="p4"
-        error="Dieser Raum ist voll (max. 3 Spieler)."
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
-        onLeave={noop}
+        error="Dieser Raum ist voll (max. 4 Spieler)."
       />,
     )
-    expect(screen.getByText('Dieser Raum ist voll (max. 3 Spieler).')).toBeInTheDocument()
+    expect(screen.getByText('Dieser Raum ist voll (max. 4 Spieler).')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Raum verlassen' })).not.toBeInTheDocument()
   })
 
@@ -117,18 +117,11 @@ describe('LobbyScreen', () => {
     const onLeave = vi.fn()
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Max"
-        onNameChange={noop}
-        joinCode=""
-        onJoinCodeChange={noop}
         room={twoPlayers}
         storedRoomCode="WXYZ"
         playerId="p1"
-        error={null}
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
         onLeave={onLeave}
       />,
     )
@@ -142,18 +135,12 @@ describe('LobbyScreen', () => {
     const onLeave = vi.fn()
     render(
       <LobbyScreen
+        {...lobbyProps}
         name="Nils"
-        onNameChange={noop}
-        joinCode=""
-        onJoinCodeChange={noop}
         room={null}
         storedRoomCode="ABCD"
         playerId="p1"
         error="Keine Verbindung. Prüfe Netz und Supabase-URL."
-        busy={false}
-        onCreate={noop}
-        onJoin={noop}
-        onStart={noop}
         onLeave={onLeave}
       />,
     )
@@ -163,5 +150,43 @@ describe('LobbyScreen', () => {
     expect(leave).toHaveClass('h-14')
     fireEvent.click(leave)
     expect(onLeave).toHaveBeenCalledOnce()
+  })
+
+  it('übergibt die gewählte Spielerzahl beim Erstellen', () => {
+    const onCreate = vi.fn()
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Max"
+        room={null}
+        playerId="p1"
+        onCreate={onCreate}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '5' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Raum erstellen' }))
+    expect(onCreate).toHaveBeenCalledWith(5)
+  })
+
+  it('zeigt Stimmen und markiert die eigene Wahl', () => {
+    const onVote = vi.fn()
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Max"
+        room={{
+          ...fullRoom,
+          votes: { p1: 'kids', p2: 'adult', p3: 'kids' },
+        }}
+        playerId="p1"
+        onVote={onVote}
+      />,
+    )
+    expect(screen.getByText('1 Stimme')).toBeInTheDocument()
+    expect(screen.getByText('2 Stimmen')).toBeInTheDocument()
+    const kids = screen.getByRole('button', { name: /Kinder/ })
+    expect(kids).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /Erwachsene/ }))
+    expect(onVote).toHaveBeenCalledWith('adult')
   })
 })

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { normalizeRoomCode, trimName } from '../format.ts'
 import { loadIdentity, saveIdentity } from '../lib/identity.ts'
 import { supabase } from '../lib/supabase.ts'
-import type { Guess, Player, RoomState } from '../types.ts'
+import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
+import type { GameMode, Guess, Player, RoomState } from '../types.ts'
 
 function asRoom(data: unknown): RoomState {
   const row = data as RoomState
@@ -14,6 +15,9 @@ function asRoom(data: unknown): RoomState {
     current_card: row.current_card ?? null,
     next_card: row.next_card ?? null,
     last_result: row.last_result ?? null,
+    max_players: row.max_players ?? DEFAULT_PLAYERS,
+    votes: row.votes ?? {},
+    selected_mode: row.selected_mode === 'kids' ? 'kids' : 'adult',
   }
 }
 
@@ -149,10 +153,15 @@ export function useRoom() {
   )
 
   const createRoom = useCallback(
-    async (name: string) => {
+    async (name: string, maxPlayers: number = DEFAULT_PLAYERS) => {
       const trimmed = trimName(name)
+      const clamped = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(maxPlayers)))
       setIdentity(saveIdentity({ name: trimmed }))
-      await runRpc('create_room', { p_player_id: playerId, p_name: trimmed })
+      await runRpc('create_room', {
+        p_player_id: playerId,
+        p_name: trimmed,
+        p_max_players: clamped,
+      })
     },
     [playerId, runRpc],
   )
@@ -175,6 +184,18 @@ export function useRoom() {
     if (!room) return
     await runRpc('start_game', { p_room_code: room.room_code, p_player_id: playerId })
   }, [playerId, room, runRpc])
+
+  const voteMode = useCallback(
+    async (mode: GameMode) => {
+      if (!room) return
+      await runRpc('vote_mode', {
+        p_room_code: room.room_code,
+        p_player_id: playerId,
+        p_mode: mode,
+      })
+    },
+    [playerId, room, runRpc],
+  )
 
   const submitGuess = useCallback(
     async (guess: Guess) => {
@@ -211,6 +232,7 @@ export function useRoom() {
     createRoom,
     joinRoom,
     startGame,
+    voteMode,
     submitGuess,
     restartGame,
     leaveRoom,

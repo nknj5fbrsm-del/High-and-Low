@@ -39,3 +39,22 @@ button {
 button:disabled {
   cursor: not-allowed;
 }
+
+@keyframes reward-pop {
+  0% {
+    transform: scale(0.55) translateY(6px);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.12) translateY(-2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.reward-pop {
+  animation: reward-pop 0.42s cubic-bezier(0.2, 1.4, 0.32, 1) both;
+}

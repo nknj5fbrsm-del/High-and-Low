@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { livesForMode } from './axis.ts'
 import { isGameOverScreen } from './appFlow.ts'
 import { GameOverScreen } from './components/GameOverScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
@@ -46,9 +47,10 @@ export function AppView({ game }: { game: GameSession }) {
         playerId={game.playerId}
         error={game.error}
         busy={game.busy}
-        onCreate={() => void game.createRoom(name)}
+        onCreate={(maxPlayers) => void game.createRoom(name, maxPlayers)}
         onJoin={() => void game.joinRoom(joinCode, name)}
         onStart={() => void game.startGame()}
+        onVote={(mode) => void game.voteMode(mode)}
         onLeave={game.leaveRoom}
       />
     )
@@ -58,6 +60,7 @@ export function AppView({ game }: { game: GameSession }) {
     return (
       <GameOverScreen
         streak={game.room.streak}
+        maxLives={livesForMode(game.room.selected_mode)}
         roomCode={game.room.room_code}
         busy={game.busy}
         error={game.error}

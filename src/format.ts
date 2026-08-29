@@ -1,6 +1,6 @@
 import type { FactCard } from './types.ts'
 
-const numberDe = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 })
+const numberDe = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
 
 export function formatValue(value: number, unit: string): string {
   if (unit === 'Jahr') return String(value)

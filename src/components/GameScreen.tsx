@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FactCardView } from './FactCardView.tsx'
 import { GameHeader } from './GameHeader.tsx'
 import { LeaveRoomButton } from './LeaveRoomButton.tsx'
+import { guessLabels, livesForMode } from '../axis.ts'
 import { isMyTurn } from '../gameLogic.ts'
 import { REVEAL_MS } from '../types.ts'
 import type { Guess, RoomState } from '../types.ts'
@@ -35,6 +36,8 @@ export function GameScreen({
   const canGuess = mine && !revealing && !busy && room.game_status === 'playing'
   const reference = revealing ? revealing.reference : room.current_card
   const mystery = revealing ? revealing.card : room.next_card
+  const labels = reference ? guessLabels(reference.axis) : guessLabels('height')
+  const maxLives = livesForMode(room.selected_mode)
 
   if (!reference || !mystery) {
     return (
@@ -47,10 +50,15 @@ export function GameScreen({
 
   return (
     <div className="flex min-h-dvh flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
-      <GameHeader streak={room.streak} lives={room.lives} roomCode={room.room_code} />
+      <GameHeader
+        streak={room.streak}
+        lives={room.lives}
+        maxLives={maxLives}
+        roomCode={room.room_code}
+      />
 
       <div
-        className={`mt-4 rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
+        className={`relative mt-4 rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
           revealing
             ? revealing.correct
               ? 'bg-lime-400/15 text-lime-300'
@@ -60,13 +68,25 @@ export function GameScreen({
               : 'bg-zinc-800 text-zinc-400'
         }`}
       >
-        {revealing
-          ? revealing.correct
-            ? 'Richtig!'
-            : 'Falsch!'
-          : mine
-            ? 'Du bist dran!'
-            : `Warten auf ${currentName}…`}
+        {revealing ? (
+          revealing.correct ? (
+            <span className="inline-flex flex-wrap items-center justify-center gap-2">
+              Richtig!
+              <span className="reward-pop font-display text-2xl font-extrabold text-lime-200">+1</span>
+              {room.streak >= 3 && (
+                <span className="reward-pop rounded-full bg-amber-300/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-200">
+                  Combo ×{room.streak}
+                </span>
+              )}
+            </span>
+          ) : (
+            'Falsch!'
+          )
+        ) : mine ? (
+          'Du bist dran!'
+        ) : (
+          `Warten auf ${currentName}…`
+        )}
       </div>
 
       <div className="mt-5 flex flex-1 flex-col gap-3">
@@ -88,14 +108,14 @@ export function GameScreen({
             onClick={() => onGuess('higher')}
             className="h-16 rounded-2xl bg-lime-400 text-xl font-extrabold tracking-wide text-zinc-950"
           >
-            HÖHER
+            {labels.higher}
           </button>
           <button
             type="button"
             onClick={() => onGuess('lower')}
             className="h-16 rounded-2xl bg-orange-500 text-xl font-extrabold tracking-wide text-zinc-950"
           >
-            NIEDRIGER
+            {labels.lower}
           </button>
         </div>
       )}
