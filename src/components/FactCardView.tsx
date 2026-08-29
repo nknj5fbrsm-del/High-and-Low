@@ -1,15 +1,8 @@
+import { categoryLabel } from '../axis.ts'
 import type { FactCard } from '../types.ts'
 import { formatCardValue } from '../format.ts'
 
 type CardTone = 'reference' | 'hidden' | 'correct' | 'wrong'
-
-const toneClass: Record<CardTone, string> = {
-  reference:
-    'border-zinc-600 bg-zinc-900/90 shadow-[0_12px_40px_rgba(0,0,0,0.35)]',
-  hidden: 'border-zinc-700 bg-zinc-900/70',
-  correct: 'border-lime-400 bg-lime-400/10 shadow-[0_0_32px_rgba(163,230,53,0.25)]',
-  wrong: 'border-rose-400 bg-rose-500/10 shadow-[0_0_32px_rgba(251,113,133,0.25)]',
-}
 
 export function FactCardView({
   card,
@@ -22,15 +15,18 @@ export function FactCardView({
   tone: CardTone
   hideValue?: boolean
 }) {
+  const ink =
+    tone === 'correct' ? 'text-olive' : tone === 'wrong' ? 'text-burgundy' : 'text-ink'
+
   return (
-    <article className={`rounded-3xl border px-5 py-5 ${toneClass[tone]}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">{label}</p>
-      <h2 className="mt-2 text-[1.35rem] font-semibold leading-snug text-zinc-50">{card.title}</h2>
-      <p
-        className={`mt-4 font-display text-3xl font-extrabold tabular-nums tracking-tight ${
-          tone === 'correct' ? 'text-lime-300' : tone === 'wrong' ? 'text-rose-300' : 'text-white'
-        }`}
-      >
+    <article className={`trivia-card trivia-card-${tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[0.68rem] font-semibold tracking-[0.22em] text-burgundy">{categoryLabel(card.axis)}</p>
+        <p className="font-number text-[0.7rem] tracking-wide text-ink/55">{card.unit}</p>
+      </div>
+      <p className="mt-2 text-[0.7rem] font-medium uppercase tracking-[0.16em] text-ink/45">{label}</p>
+      <h2 className="font-serif mt-2 text-[1.35rem] font-medium leading-snug text-ink">{card.title}</h2>
+      <p className={`font-number mt-4 text-3xl font-semibold tabular-nums tracking-tight ${ink}`}>
         {hideValue ? '???' : formatCardValue(card)}
       </p>
     </article>

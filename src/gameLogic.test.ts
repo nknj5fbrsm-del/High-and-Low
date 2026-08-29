@@ -1,4 +1,4 @@
-import { ADULT_DECK, KIDS_DECK, axesInDeck } from './deck.ts'
+import { ADULT_DECK, KIDS_DECK, axesInDeck, axisValueRatio } from './deck.ts'
 import {
   canFormOpeningPair,
   cardsOfAxis,
@@ -58,10 +58,52 @@ describe('Deck', () => {
   })
 
   it('hat für jede Karte eine Achse', () => {
-    const axes: Axis[] = ['weight', 'price', 'height', 'distance', 'year', 'speed', 'temp', 'count']
+    const axes: Axis[] = [
+      'weight',
+      'price',
+      'height',
+      'distance',
+      'year',
+      'speed',
+      'temp',
+      'count',
+      'population',
+      'area',
+    ]
     for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
       expect(axes).toContain(card.axis)
     }
+  })
+
+  it('hält Erwachsenen-Paare eng (Ratio ≤ 2, nie über 3)', () => {
+    for (const axis of axesInDeck(ADULT_DECK)) {
+      const group = cardsOfAxis(ADULT_DECK, axis)
+      const ratio = axisValueRatio(group)
+      expect(ratio, axis).toBeLessThanOrEqual(2.01)
+      expect(ratio, axis).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('hält Kinder-Paare unter Ratio 4', () => {
+    for (const axis of axesInDeck(KIDS_DECK)) {
+      expect(axisValueRatio(cardsOfAxis(KIDS_DECK, axis)), axis).toBeLessThanOrEqual(4.01)
+    }
+  })
+
+  it('enthält die vorgesehenen Vergleichspaare', () => {
+    expect(ADULT_DECK.find((card) => card.id === 'wien')?.value).toBe(2.04)
+    expect(ADULT_DECK.find((card) => card.id === 'hamburg')?.value).toBe(1.86)
+    expect(ADULT_DECK.find((card) => card.id === 'oesterreich')?.value).toBe(83879)
+    expect(ADULT_DECK.find((card) => card.id === 'tschechien')?.value).toBe(78871)
+    expect(ADULT_DECK.find((card) => card.id === 'eiffelturm-hoehe')?.value).toBe(330)
+    expect(ADULT_DECK.find((card) => card.id === 'empire-state')?.value).toBe(443)
+    expect(KIDS_DECK.find((card) => card.id === 'k-eiffel')?.value).toBe(330)
+    expect(KIDS_DECK.find((card) => card.id === 'k-dom')?.value).toBe(157)
+    expect(KIDS_DECK.find((card) => card.id === 'k-tiger')?.value).toBeGreaterThan(
+      KIDS_DECK.find((card) => card.id === 'k-loewe')?.value ?? 0,
+    )
+    expect(KIDS_DECK.find((card) => card.id === 'k-de')?.value).toBe(84)
+    expect(KIDS_DECK.find((card) => card.id === 'k-it')?.value).toBe(59)
   })
 })
 

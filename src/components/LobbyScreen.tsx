@@ -24,6 +24,8 @@ export function LobbyScreen({
   onJoin,
   onStart,
   onVote,
+  onSolo,
+  onStartMode,
   onLeave,
 }: {
   name: string
@@ -39,6 +41,8 @@ export function LobbyScreen({
   onJoin: () => void
   onStart: () => void
   onVote: (mode: GameMode) => void
+  onSolo: (mode: GameMode) => void
+  onStartMode: (mode: GameMode) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -46,6 +50,7 @@ export function LobbyScreen({
   const isHost = room?.host_id === playerId
   const players: Player[] = room?.players ?? []
   const seats = room?.max_players ?? DEFAULT_PLAYERS
+  const soloRoom = Boolean(room) && seats === 1
   const full = Boolean(room) && players.length === seats
   const inRoom = Boolean(room)
   const canLeave = Boolean(room || storedRoomCode)
@@ -65,15 +70,15 @@ export function LobbyScreen({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <div className="page-table flex min-h-dvh flex-col px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))]">
       <header className="pt-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-lime-400">
-          Koop · 2–6 Spieler
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-khaki">
+          Karten auf dem Tisch
         </p>
-        <h1 className="font-display mt-2 text-4xl font-extrabold leading-none tracking-tight text-white">
+        <h1 className="font-serif mt-2 text-4xl font-medium leading-none tracking-tight text-cream">
           High & Low
         </h1>
-        <p className="mt-1 text-lg font-medium text-zinc-400">Team-Stapel</p>
+        <p className="mt-2 font-serif text-lg text-khaki">Fakten, eine Richtung, eine Serie.</p>
       </header>
 
       <form
@@ -86,7 +91,7 @@ export function LobbyScreen({
         }}
       >
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-zinc-300">Dein Name</span>
+          <span className="mb-2 block text-sm font-medium text-khaki">Dein Name</span>
           <input
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
@@ -94,28 +99,57 @@ export function LobbyScreen({
             autoComplete="nickname"
             placeholder="z. B. Nils"
             disabled={inRoom}
-            className="h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-lg text-white outline-none placeholder:text-zinc-600 focus:border-lime-400"
+            className="field-input"
           />
         </label>
 
-        {inRoom && room ? (
-          <section className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Raumcode</p>
+        {!inRoom && (
+          <section>
+            <p className="text-sm font-medium text-cream">Allein spielen</p>
+            <p className="mt-1 text-sm text-khaki">Kein Warten. Karte liegt, nächste bleibt zu.</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={busy || name.trim().length === 0}
+                onClick={() => onSolo('adult')}
+                className="tab-btn tab-btn-burgundy"
+              >
+                Erwachsene
+              </button>
+              <button
+                type="button"
+                disabled={busy || name.trim().length === 0}
+                onClick={() => onSolo('kids')}
+                className="tab-btn tab-btn-khaki"
+              >
+                Kinder
+              </button>
+            </div>
+          </section>
+        )}
+
+        {inRoom && room && !soloRoom ? (
+          <section className="trivia-card">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-burgundy">Raumcode</p>
             <button
               type="button"
               onClick={() => void copyCode()}
-              className="font-display mt-2 text-5xl font-extrabold tracking-[0.2em] text-lime-300"
+              className="font-number mt-2 text-5xl font-semibold tracking-[0.18em] text-ink"
             >
               {room.room_code}
             </button>
-            <p className="mt-2 text-sm text-zinc-500">
+            <p className="mt-2 text-sm text-ink/60">
               {copied ? 'Code kopiert.' : 'Tippen zum Kopieren · an die anderen weitergeben'}
             </p>
           </section>
-        ) : (
+        ) : !inRoom ? (
           <>
+            <div className="relative py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-khaki">
+              oder zu zweit bis sechst
+            </div>
+
             <fieldset>
-              <legend className="mb-2 block text-sm font-medium text-zinc-300">Spielerzahl</legend>
+              <legend className="mb-2 block text-sm font-medium text-khaki">Spielerzahl</legend>
               <div className="grid grid-cols-5 gap-2">
                 {PLAYER_OPTIONS.map((count) => {
                   const selected = maxPlayers === count
@@ -125,10 +159,8 @@ export function LobbyScreen({
                       type="button"
                       aria-pressed={selected}
                       onClick={() => setMaxPlayers(count)}
-                      className={`h-14 rounded-2xl text-lg font-bold ${
-                        selected
-                          ? 'bg-lime-400 text-zinc-950'
-                          : 'border border-zinc-700 bg-zinc-900 text-white'
+                      className={`h-14 rounded text-lg font-bold ${
+                        selected ? 'tab-btn-burgundy' : 'tab-btn-ghost'
                       }`}
                     >
                       {count}
@@ -136,8 +168,8 @@ export function LobbyScreen({
                   )
                 })}
               </div>
-              <p className="mt-2 text-sm text-zinc-500">
-                Start erst, wenn {maxPlayers} Personen im Raum sind.
+              <p className="mt-2 text-sm text-khaki">
+                Start erst, wenn {maxPlayers} Personen am Tisch sind.
               </p>
             </fieldset>
 
@@ -145,17 +177,13 @@ export function LobbyScreen({
               type="button"
               onClick={() => onCreate(maxPlayers)}
               disabled={busy || name.trim().length === 0}
-              className="h-14 w-full rounded-2xl bg-lime-400 text-lg font-bold text-zinc-950 disabled:opacity-40"
+              className="tab-btn tab-btn-khaki"
             >
               Raum erstellen
             </button>
 
-            <div className="relative py-1 text-center text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-              oder beitreten
-            </div>
-
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-zinc-300">Raumcode</span>
+              <span className="mb-2 block text-sm font-medium text-khaki">Raumcode</span>
               <input
                 value={joinCode}
                 onChange={(event) => onJoinCodeChange(normalizeRoomCode(event.target.value))}
@@ -164,23 +192,48 @@ export function LobbyScreen({
                 autoCorrect="off"
                 spellCheck={false}
                 placeholder="ABCD"
-                className="h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-center font-display text-2xl font-extrabold tracking-[0.4em] text-white outline-none placeholder:text-zinc-700 focus:border-lime-400"
+                className="field-input text-center font-number text-2xl font-semibold tracking-[0.4em]"
               />
             </label>
             <button
               type="button"
               onClick={onJoin}
               disabled={busy || name.trim().length === 0 || joinCode.length !== 4}
-              className="h-14 w-full rounded-2xl border border-zinc-600 text-lg font-bold text-white disabled:opacity-40"
+              className="tab-btn tab-btn-ghost"
             >
               Raum beitreten
             </button>
           </>
+        ) : null}
+
+        {inRoom && room && soloRoom && (
+          <section>
+            <p className="font-serif text-xl text-cream">Welcher Stapel?</p>
+            <p className="mt-1 text-sm text-khaki">Ein Blatt. Keine leeren Stühle.</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStartMode('adult')}
+                className="tab-btn tab-btn-burgundy"
+              >
+                Erwachsene
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStartMode('kids')}
+                className="tab-btn tab-btn-khaki"
+              >
+                Kinder
+              </button>
+            </div>
+          </section>
         )}
 
-        {inRoom && room && (
+        {inRoom && room && !soloRoom && (
           <section>
-            <p className="text-sm font-medium text-zinc-400">
+            <p className="text-sm font-medium text-khaki">
               Spieler {players.length}/{seats}
             </p>
             <ul className="mt-3 space-y-2">
@@ -189,13 +242,13 @@ export function LobbyScreen({
                 return (
                   <li
                     key={player?.id ?? `empty-${index}`}
-                    className="flex h-12 items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4"
+                    className="flex h-12 items-center justify-between rounded border-2 border-khaki/40 bg-table/40 px-4"
                   >
-                    <span className={player ? 'font-medium text-white' : 'text-zinc-600'}>
+                    <span className={player ? 'font-medium text-cream' : 'text-khaki/70'}>
                       {player ? player.name : 'Warten …'}
                     </span>
                     {player && player.id === room.host_id && (
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime-400">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-khaki">
                         Host
                       </span>
                     )}
@@ -206,10 +259,10 @@ export function LobbyScreen({
           </section>
         )}
 
-        {inRoom && (
+        {inRoom && !soloRoom && (
           <section>
-            <p className="text-sm font-medium text-zinc-300">Welcher Stapel?</p>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="text-sm font-medium text-cream">Welcher Stapel?</p>
+            <p className="mt-1 text-sm text-khaki">
               Mehrheit gewinnt. Gleichstand entscheidet die Stimme des Hosts.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -219,7 +272,7 @@ export function LobbyScreen({
                 count={counts.adult}
                 disabled={busy}
                 onVote={onVote}
-                detail="3 Leben, härtere Fakten"
+                detail="3 Leben, enge Fakten"
               />
               <ModeVoteButton
                 mode="kids"
@@ -227,35 +280,28 @@ export function LobbyScreen({
                 count={counts.kids}
                 disabled={busy}
                 onVote={onVote}
-                detail="5 Leben, leichterer Stapel"
+                detail="5 Leben, weiterer Stapel"
               />
             </div>
           </section>
         )}
 
         {error && (
-          <p className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-            {error}
-          </p>
+          <p className="rounded border-2 border-khaki bg-table px-4 py-3 text-sm text-cream">{error}</p>
         )}
 
-        {inRoom && isHost && full && (
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={busy}
-            className="h-14 w-full rounded-2xl bg-lime-400 text-lg font-bold text-zinc-950 disabled:opacity-40"
-          >
+        {inRoom && !soloRoom && isHost && full && (
+          <button type="button" onClick={onStart} disabled={busy} className="tab-btn tab-btn-burgundy">
             Spiel starten
           </button>
         )}
 
-        {inRoom && !isHost && full && (
-          <p className="text-center text-sm text-zinc-500">Warte, bis der Host startet …</p>
+        {inRoom && !soloRoom && !isHost && full && (
+          <p className="text-center text-sm text-khaki">Warte, bis der Host startet …</p>
         )}
 
-        {inRoom && !full && (
-          <p className="text-center text-sm text-zinc-500">
+        {inRoom && !soloRoom && !full && (
+          <p className="text-center text-sm text-khaki">
             Noch {seats - players.length} {seats - players.length === 1 ? 'Platz' : 'Plätze'} frei.
           </p>
         )}
@@ -287,16 +333,12 @@ function ModeVoteButton({
       aria-pressed={selected}
       disabled={disabled}
       onClick={() => onVote(mode)}
-      className={`rounded-2xl px-3 py-4 text-left disabled:opacity-40 ${
-        selected
-          ? 'bg-lime-400 text-zinc-950'
-          : 'border border-zinc-700 bg-zinc-900 text-white'
+      className={`rounded px-3 py-4 text-left disabled:opacity-40 ${
+        selected ? 'tab-btn-burgundy' : 'tab-btn-ghost'
       }`}
     >
       <span className="block text-lg font-bold">{modeLabel(mode)}</span>
-      <span className={`mt-1 block text-xs ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>
-        {detail}
-      </span>
+      <span className={`mt-1 block text-xs ${selected ? 'text-cream/80' : 'text-khaki'}`}>{detail}</span>
       <span className="mt-2 block text-sm font-semibold tabular-nums">
         {count} {count === 1 ? 'Stimme' : 'Stimmen'}
       </span>

@@ -10,6 +10,8 @@ export type Axis =
   | 'speed'
   | 'temp'
   | 'count'
+  | 'population'
+  | 'area'
 
 export interface FactCard {
   id: string
@@ -62,6 +64,7 @@ export interface DealResult {
 export const MIN_PLAYERS = 2
 export const MAX_PLAYERS = 6
 export const DEFAULT_PLAYERS = 3
+export const SOLO_PLAYERS = 1
 export const MAX_LIVES = 3
 export const KIDS_LIVES = 5
 export const REVEAL_MS = 1700
