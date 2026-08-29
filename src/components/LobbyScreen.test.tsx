@@ -40,8 +40,10 @@ const lobbyProps = {
   onCreate: noop,
   onJoin: noop,
   onStart: noop,
-  onVote: noop,
-  onLeave: noop,
+    onVote: noop,
+    onSolo: noop,
+    onStartMode: noop,
+    onLeave: noop,
 }
 
 describe('LobbyScreen', () => {
@@ -110,7 +112,7 @@ describe('LobbyScreen', () => {
       />,
     )
     expect(screen.getByText('Dieser Raum ist voll (max. 4 Spieler).')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Raum verlassen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tisch verlassen' })).not.toBeInTheDocument()
   })
 
   it('lässt den Raum aus der Lobby mit sichtbarem Button verlassen', () => {
@@ -125,13 +127,13 @@ describe('LobbyScreen', () => {
         onLeave={onLeave}
       />,
     )
-    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    const leave = screen.getByRole('button', { name: 'Tisch verlassen' })
     expect(leave).toHaveClass('h-14')
     fireEvent.click(leave)
     expect(onLeave).toHaveBeenCalledOnce()
   })
 
-  it('zeigt Raum verlassen wenn Restore fehlschlug (room null, roomCode gesetzt)', () => {
+  it('zeigt Tisch verlassen wenn Restore fehlschlug (room null, roomCode gesetzt)', () => {
     const onLeave = vi.fn()
     render(
       <LobbyScreen
@@ -146,10 +148,27 @@ describe('LobbyScreen', () => {
     )
     expect(screen.getByText('Keine Verbindung. Prüfe Netz und Supabase-URL.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument()
-    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    const leave = screen.getByRole('button', { name: 'Tisch verlassen' })
     expect(leave).toHaveClass('h-14')
     fireEvent.click(leave)
     expect(onLeave).toHaveBeenCalledOnce()
+  })
+
+  it('startet Solo ohne Lobby direkt über Erwachsene/Kinder', () => {
+    const onSolo = vi.fn()
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Nils"
+        room={null}
+        playerId="p1"
+        onSolo={onSolo}
+      />,
+    )
+    expect(screen.getByText('Allein spielen')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '1' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Erwachsene' }))
+    expect(onSolo).toHaveBeenCalledWith('adult')
   })
 
   it('übergibt die gewählte Spielerzahl beim Erstellen', () => {

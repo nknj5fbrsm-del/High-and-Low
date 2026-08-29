@@ -5,9 +5,9 @@ import { ADULT_DECK } from '../deck.ts'
 import { formatCardValue } from '../format.ts'
 
 const weightRef = ADULT_DECK.find((card) => card.id === 'mensch')!
-const weightNext = ADULT_DECK.find((card) => card.id === 'nilpferd')!
-const yearRef = ADULT_DECK.find((card) => card.id === 'mauerfall')!
-const yearNext = ADULT_DECK.find((card) => card.id === 'chatgpt')!
+const weightNext = ADULT_DECK.find((card) => card.id === 'panda')!
+const yearRef = ADULT_DECK.find((card) => card.id === 'google')!
+const yearNext = ADULT_DECK.find((card) => card.id === 'iphone-jahr')!
 
 const room: RoomState = {
   room_code: 'ABCD',
@@ -35,10 +35,10 @@ const room: RoomState = {
 describe('GameScreen', () => {
   it('zeigt eigenen Zug mit Labels aus der Achse', () => {
     render(<GameScreen room={room} playerId="p1" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
-    expect(screen.getByText('Du bist dran!')).toBeInTheDocument()
+    expect(screen.getByText('Dein Blatt.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'SCHWERER' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'LEICHTER' })).toBeEnabled()
-    expect(screen.getByText('🔥 14')).toBeInTheDocument()
+    expect(screen.getByLabelText('Serie 14')).toBeInTheDocument()
     expect(screen.getByText(weightRef.title)).toBeInTheDocument()
     expect(screen.getByText(weightNext.title)).toBeInTheDocument()
     expect(screen.getByText('???')).toBeInTheDocument()
@@ -81,9 +81,8 @@ describe('GameScreen', () => {
         onLeave={() => {}}
       />,
     )
-    expect(screen.getByText('Richtig!')).toBeInTheDocument()
-    expect(screen.getByText('+1')).toBeInTheDocument()
-    expect(screen.getByText('Combo ×5')).toBeInTheDocument()
+    expect(screen.getByText('Richtig.')).toBeInTheDocument()
+    expect(screen.getByText('+1 · Serie 5')).toBeInTheDocument()
     expect(screen.getByText(formatCardValue(weightNext))).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
   })
@@ -108,18 +107,17 @@ describe('GameScreen', () => {
         onLeave={() => {}}
       />,
     )
-    expect(screen.getByText('Falsch!')).toBeInTheDocument()
+    expect(screen.getByText('Falsch.')).toBeInTheDocument()
     expect(screen.queryByText('+1')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Combo/)).not.toBeInTheDocument()
   })
 
   it('versteckt die Buttons, wenn jemand anderes dran ist', () => {
     render(<GameScreen room={room} playerId="p2" busy={false} error={null} onGuess={() => {}} onLeave={() => {}} />)
-    expect(screen.getByText('Warten auf Max…')).toBeInTheDocument()
+    expect(screen.getByText('Warten auf Max')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
   })
 
-  it('zeigt die rote Auflösung beim letzten Fehlversuch', () => {
+  it('zeigt die Auflösung beim letzten Fehlversuch', () => {
     render(
       <GameScreen
         room={{
@@ -141,12 +139,12 @@ describe('GameScreen', () => {
         onLeave={() => {}}
       />,
     )
-    expect(screen.getByText('Falsch!')).toBeInTheDocument()
+    expect(screen.getByText('Falsch.')).toBeInTheDocument()
     expect(screen.getByText(formatCardValue(weightNext))).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'SCHWERER' })).not.toBeInTheDocument()
   })
 
-  it('hat einen sichtbaren Button Raum verlassen', () => {
+  it('hat einen sichtbaren Button Tisch verlassen', () => {
     const onLeave = vi.fn()
     render(
       <GameScreen
@@ -158,7 +156,7 @@ describe('GameScreen', () => {
         onLeave={onLeave}
       />,
     )
-    const leave = screen.getByRole('button', { name: 'Raum verlassen' })
+    const leave = screen.getByRole('button', { name: 'Tisch verlassen' })
     expect(leave).toHaveClass('h-14')
     fireEvent.click(leave)
     expect(onLeave).toHaveBeenCalledOnce()

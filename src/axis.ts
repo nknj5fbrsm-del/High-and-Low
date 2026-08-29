@@ -10,10 +10,29 @@ export const AXIS_LABELS: Record<Axis, { higher: string; lower: string }> = {
   speed: { higher: 'SCHNELLER', lower: 'LANGSAMER' },
   temp: { higher: 'WÄRMER', lower: 'KÄLTER' },
   count: { higher: 'MEHR', lower: 'WENIGER' },
+  population: { higher: 'MEHR', lower: 'WENIGER' },
+  area: { higher: 'GRÖSSER', lower: 'KLEINER' },
+}
+
+export const AXIS_CATEGORY: Record<Axis, string> = {
+  weight: 'GEWICHT',
+  price: 'PREIS',
+  height: 'HÖHE',
+  distance: 'STRECKE',
+  year: 'JAHR',
+  speed: 'TEMPO',
+  temp: 'TEMPERATUR',
+  count: 'ANZAHL',
+  population: 'EINWOHNER',
+  area: 'FLÄCHE',
 }
 
 export function guessLabels(axis: Axis): { higher: string; lower: string } {
   return AXIS_LABELS[axis] ?? AXIS_LABELS.height
+}
+
+export function categoryLabel(axis: Axis): string {
+  return AXIS_CATEGORY[axis] ?? 'FAKT'
 }
 
 export function livesForMode(mode: GameMode): number {
@@ -41,11 +60,26 @@ export function streakTitle(streak: number): string {
   if (streak <= 0) return 'Noch kalt'
   if (streak < 5) return 'Fuß in der Tür'
   if (streak < 10) return 'Kommt in Fahrt'
-  if (streak < 15) return 'Team im Flow'
+  if (streak < 15) return 'Im Fluss'
   if (streak < 25) return 'Streak-Maschine'
   return 'Unaufhaltsam'
 }
 
 export function modeLabel(mode: GameMode): string {
   return mode === 'kids' ? 'Kinder' : 'Erwachsene'
+}
+
+/** Kurze Dealer-Zeile nach der Auflösung. Kein Fake-Mitspieler. */
+export function dealerLine(a: number, b: number): string | null {
+  const hi = Math.max(Math.abs(a), Math.abs(b))
+  const lo = Math.min(Math.abs(a), Math.abs(b))
+  if (lo === 0) return null
+  const ratio = hi / lo
+  if (ratio <= 1.12) return 'knapp!'
+  if (ratio <= 1.25) return 'mutig.'
+  return null
+}
+
+export function isSoloRoom(room: { max_players: number }): boolean {
+  return room.max_players === 1
 }

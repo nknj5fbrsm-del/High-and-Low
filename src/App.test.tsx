@@ -69,6 +69,7 @@ function LeaveHarness({
     createRoom: async () => undefined,
     joinRoom: async () => undefined,
     startGame: async () => undefined,
+    startSolo: async () => undefined,
     voteMode: async () => undefined,
     submitGuess: async () => undefined,
     restartGame: async () => undefined,
@@ -92,23 +93,23 @@ describe('AppView leaveRoom', () => {
 
   it('führt aus dem Spiel zurück zur Name/Erstellen-UI', () => {
     render(<LeaveHarness room={playingRoom} roomCode="ABCD" />)
-    expect(screen.getByText('Du bist dran!')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Raum verlassen' }))
+    expect(screen.getByText('Dein Blatt.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Tisch verlassen' }))
     expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument()
     expect(screen.getByLabelText('Dein Name')).toBeInTheDocument()
-    expect(screen.queryByText('Du bist dran!')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dein Blatt.')).not.toBeInTheDocument()
   })
 
   it('führt aus Game Over zurück zur Name/Erstellen-UI', () => {
     vi.useFakeTimers()
     render(<LeaveHarness room={gameOverRoom} roomCode="ABCD" />)
-    expect(screen.getByText('Falsch!')).toBeInTheDocument()
+    expect(screen.getByText('Falsch.')).toBeInTheDocument()
     act(() => {
       vi.advanceTimersByTime(REVEAL_MS)
     })
-    expect(screen.getByText('Game Over')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Raum verlassen' }))
+    expect(screen.getByText('Keine Karten mehr.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Tisch verlassen' }))
     expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument()
-    expect(screen.queryByText('Game Over')).not.toBeInTheDocument()
+    expect(screen.queryByText('Keine Karten mehr.')).not.toBeInTheDocument()
   })
 })

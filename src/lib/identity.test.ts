@@ -1,4 +1,4 @@
-import { loadIdentity, saveIdentity } from './identity.ts'
+import { loadIdentity, loadSoloBest, noteSoloStreak, saveIdentity } from './identity.ts'
 
 describe('identity', () => {
   beforeEach(() => {
@@ -26,5 +26,13 @@ describe('identity', () => {
     expect(next.roomCode).toBeNull()
     expect(next.name).toBe('Nils')
     expect(next.playerId).toBe(created.playerId)
+  })
+
+  it('merkt sich den Solo-Rekord', () => {
+    expect(loadSoloBest()).toBe(0)
+    expect(noteSoloStreak(8)).toBe(8)
+    expect(noteSoloStreak(5)).toBe(8)
+    expect(noteSoloStreak(14)).toBe(14)
+    expect(loadSoloBest()).toBe(14)
   })
 })

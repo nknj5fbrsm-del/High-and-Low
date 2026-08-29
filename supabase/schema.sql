@@ -4,7 +4,9 @@
 DROP FUNCTION IF EXISTS vote_mode(text, text, text);
 DROP FUNCTION IF EXISTS submit_guess(text, text, text, integer);
 DROP FUNCTION IF EXISTS restart_game(text, text);
+DROP FUNCTION IF EXISTS start_solo(text, text, text);
 DROP FUNCTION IF EXISTS start_game(text, text);
+DROP FUNCTION IF EXISTS start_game(text, text, text);
 DROP FUNCTION IF EXISTS join_room(text, text, text);
 DROP FUNCTION IF EXISTS create_room(text, text);
 DROP FUNCTION IF EXISTS create_room(text, text, integer);
@@ -70,7 +72,7 @@ ALTER TABLE rooms ADD COLUMN IF NOT EXISTS votes jsonb NOT NULL DEFAULT '{}'::js
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_mode text NOT NULL DEFAULT 'adult';
 
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_max_players_range;
-ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_range CHECK (max_players BETWEEN 2 AND 6);
+ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_range CHECK (max_players BETWEEN 1 AND 6);
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_mode_ok;
 ALTER TABLE rooms ADD CONSTRAINT rooms_selected_mode_ok CHECK (selected_mode IN ('adult', 'kids'));
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_votes_object;
@@ -79,153 +81,134 @@ ALTER TABLE rooms ADD CONSTRAINT rooms_votes_object CHECK (jsonb_typeof(votes) =
 TRUNCATE fact_cards;
 
 INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
-  ('mensch', 'Gewicht Durchschnittsmensch (DE)', 77, 'kg', 'weight', 'adult'),
-  ('wolf', 'Gewicht Wolf', 40, 'kg', 'weight', 'adult'),
-  ('pferd', 'Gewicht Warmblutpferd', 550, 'kg', 'weight', 'adult'),
-  ('smart-fortwo', 'Gewicht Smart Fortwo', 890, 'kg', 'weight', 'adult'),
-  ('vw-golf', 'Gewicht VW Golf', 1300, 'kg', 'weight', 'adult'),
-  ('nilpferd', 'Gewicht Nilpferd', 1500, 'kg', 'weight', 'adult'),
-  ('elefant', 'Gewicht Afrikanischer Elefant', 6000, 'kg', 'weight', 'adult'),
-  ('t-rex', 'Gewicht Tyrannosaurus rex (Schätzung)', 8000, 'kg', 'weight', 'adult'),
-  ('leopard-2', 'Gewicht Kampfpanzer Leopard 2', 62000, 'kg', 'weight', 'adult'),
-  ('blauwal', 'Gewicht Blauwal', 140000, 'kg', 'weight', 'adult'),
-  ('a380', 'Gewicht Airbus A380 (leer)', 277000, 'kg', 'weight', 'adult'),
-  ('saturn-v', 'Gewicht Saturn V (betankt)', 2970000, 'kg', 'weight', 'adult'),
-  ('doener', 'Preis eines Döners', 7, '€', 'price', 'adult'),
-  ('deutschlandticket', 'Deutschlandticket (Monat, 2026)', 63, '€', 'price', 'adult'),
+  ('wien', 'Wien (Stadt)', 2.04, 'Mio.', 'population', 'adult'),
+  ('hamburg', 'Hamburg (Stadt)', 1.86, 'Mio.', 'population', 'adult'),
+  ('warschau', 'Warschau (Stadt)', 1.86, 'Mio.', 'population', 'adult'),
+  ('budapest', 'Budapest (Stadt)', 1.69, 'Mio.', 'population', 'adult'),
+  ('barcelona', 'Barcelona (Stadt)', 1.66, 'Mio.', 'population', 'adult'),
+  ('muenchen', 'München (Stadt)', 1.51, 'Mio.', 'population', 'adult'),
+  ('prag', 'Prag (Stadt)', 1.38, 'Mio.', 'population', 'adult'),
+  ('mailand', 'Mailand (Stadt)', 1.37, 'Mio.', 'population', 'adult'),
+  ('tschechien', 'Tschechien', 78871, 'km²', 'area', 'adult'),
+  ('panama', 'Panama', 75417, 'km²', 'area', 'adult'),
+  ('vae', 'Vereinigte Arabische Emirate', 83600, 'km²', 'area', 'adult'),
+  ('oesterreich', 'Österreich', 83879, 'km²', 'area', 'adult'),
+  ('irland', 'Irland (Staat)', 70273, 'km²', 'area', 'adult'),
+  ('aserbaidschan', 'Aserbaidschan', 86600, 'km²', 'area', 'adult'),
+  ('jordanien', 'Jordanien', 89342, 'km²', 'area', 'adult'),
+  ('portugal', 'Portugal', 92212, 'km²', 'area', 'adult'),
+  ('shard', 'The Shard, London', 310, 'm', 'height', 'adult'),
+  ('chrysler', 'Chrysler Building', 319, 'm', 'height', 'adult'),
+  ('eiffelturm-hoehe', 'Eiffelturm', 330, 'm', 'height', 'adult'),
+  ('bank-of-china', 'Bank of China Tower, Hongkong', 367, 'm', 'height', 'adult'),
+  ('fernsehturm', 'Berliner Fernsehturm', 368, 'm', 'height', 'adult'),
+  ('two-ifc', 'Two IFC, Hongkong', 415, 'm', 'height', 'adult'),
+  ('jin-mao', 'Jin-Mao-Turm, Shanghai', 421, 'm', 'height', 'adult'),
+  ('empire-state', 'Empire State Building (mit Antenne)', 443, 'm', 'height', 'adult'),
+  ('hyaene', 'Tüpfelhyäne', 70, 'kg', 'weight', 'adult'),
+  ('mensch', 'Durchschnittsmensch (DE)', 77, 'kg', 'weight', 'adult'),
+  ('jaguar', 'Jaguar', 80, 'kg', 'weight', 'adult'),
+  ('warzenschwein', 'Warzenschwein', 80, 'kg', 'weight', 'adult'),
+  ('kaenguru', 'Rotes Riesenkänguru', 85, 'kg', 'weight', 'adult'),
+  ('orang-utan', 'Orang-Utan, Männchen', 85, 'kg', 'weight', 'adult'),
+  ('wildschwein', 'Mitteleuropäisches Wildschwein', 90, 'kg', 'weight', 'adult'),
+  ('panda', 'Großer Panda', 100, 'kg', 'weight', 'adult'),
+  ('rentier', 'Rentier', 120, 'kg', 'weight', 'adult'),
+  ('schwarzbaer', 'Amerikanischer Schwarzbär', 135, 'kg', 'weight', 'adult'),
+  ('steam-deck', 'Steam Deck OLED', 549, '€', 'price', 'adult'),
+  ('airpods-max', 'AirPods Max', 599, '€', 'price', 'adult'),
   ('ps5', 'PlayStation 5 mit Laufwerk (UVP)', 650, '€', 'price', 'adult'),
+  ('ipad-air', 'iPad Air 11″', 699, '€', 'price', 'adult'),
+  ('dji-mini', 'DJI Mini 4 Pro', 759, '€', 'price', 'adult'),
+  ('pixel-9', 'Google Pixel 9', 799, '€', 'price', 'adult'),
+  ('watch-ultra', 'Apple Watch Ultra 2', 899, '€', 'price', 'adult'),
   ('iphone-16', 'iPhone 16', 999, '€', 'price', 'adult'),
-  ('bahncard-100', 'BahnCard 100, 2. Klasse', 4899, '€', 'price', 'adult'),
-  ('golf-neupreis', 'Neupreis VW Golf 8', 28000, '€', 'price', 'adult'),
-  ('median-gehalt', 'Median-Jahresgehalt brutto (DE)', 45000, '€', 'price', 'adult'),
-  ('gold-kg', 'Kilogramm Feingold', 78000, '€', 'price', 'adult'),
-  ('efh', 'Einfamilienhaus in DE (Schnitt)', 420000, '€', 'price', 'adult'),
-  ('eurofighter', 'Stückpreis Eurofighter Typhoon', 120000000, '€', 'price', 'adult'),
-  ('elbphilharmonie', 'Baukosten Elbphilharmonie', 866000000, '€', 'price', 'adult'),
-  ('konstantinopel', 'Fall Konstantinopels', 1453, 'Jahr', 'year', 'adult'),
-  ('kolumbus', 'Kolumbus erreicht Amerika', 1492, 'Jahr', 'year', 'adult'),
-  ('brandenburger-tor', 'Baujahr Brandenburger Tor', 1791, 'Jahr', 'year', 'adult'),
-  ('beethoven-9', 'Uraufführung 9. Sinfonie', 1824, 'Jahr', 'year', 'adult'),
-  ('koelner-dom-jahr', 'Fertigstellung Kölner Dom', 1880, 'Jahr', 'year', 'adult'),
-  ('eiffelturm-jahr', 'Baujahr Eiffelturm', 1889, 'Jahr', 'year', 'adult'),
-  ('titanic', 'Untergang der Titanic', 1912, 'Jahr', 'year', 'adult'),
-  ('grundgesetz', 'Grundgesetz der Bundesrepublik', 1949, 'Jahr', 'year', 'adult'),
-  ('mauer-bau', 'Bau der Berliner Mauer', 1961, 'Jahr', 'year', 'adult'),
-  ('mondlandung', 'Erste Mondlandung', 1969, 'Jahr', 'year', 'adult'),
-  ('mauerfall', 'Fall der Berliner Mauer', 1989, 'Jahr', 'year', 'adult'),
+  ('google', 'Gründung von Google', 1998, 'Jahr', 'year', 'adult'),
+  ('euro-buchgeld', 'Euro als Buchgeld', 1999, 'Jahr', 'year', 'adult'),
   ('wikipedia', 'Start von Wikipedia', 2001, 'Jahr', 'year', 'adult'),
+  ('euro-bargeld', 'Euro-Bargeld', 2002, 'Jahr', 'year', 'adult'),
+  ('facebook', 'Start von Facebook', 2004, 'Jahr', 'year', 'adult'),
+  ('youtube', 'Start von YouTube', 2005, 'Jahr', 'year', 'adult'),
+  ('twitter', 'Start von Twitter', 2006, 'Jahr', 'year', 'adult'),
   ('iphone-jahr', 'Erstes iPhone', 2007, 'Jahr', 'year', 'adult'),
-  ('chatgpt', 'Start von ChatGPT', 2022, 'Jahr', 'year', 'adult'),
-  ('marathon', 'Marathondistanz', 42, 'km', 'distance', 'adult'),
-  ('hamburg-koeln', 'Entfernung Hamburg–Köln (Straße)', 430, 'km', 'distance', 'adult'),
-  ('berlin-muenchen', 'Entfernung Berlin–München (Straße)', 585, 'km', 'distance', 'adult'),
-  ('a7', 'Länge der Autobahn A7', 962, 'km', 'distance', 'adult'),
-  ('rhein', 'Länge des Rheins', 1233, 'km', 'distance', 'adult'),
-  ('amazonas', 'Länge des Amazonas', 6400, 'km', 'distance', 'adult'),
-  ('nil', 'Länge des Nils', 6650, 'km', 'distance', 'adult'),
-  ('transsib', 'Transsibirische Eisenbahn', 9289, 'km', 'distance', 'adult'),
-  ('berlin-sydney', 'Luftlinie Berlin–Sydney', 16100, 'km', 'distance', 'adult'),
-  ('aequator', 'Umfang des Äquators', 40075, 'km', 'distance', 'adult'),
-  ('licht-sekunde', 'Lichtstrecke in einer Sekunde', 299792, 'km', 'distance', 'adult'),
-  ('erde-mond', 'Abstand Erde–Mond (mittel)', 384400, 'km', 'distance', 'adult'),
-  ('freiheitsstatue', 'Höhe der Freiheitsstatue', 93, 'm', 'height', 'adult'),
-  ('koelner-dom-hoehe', 'Höhe des Kölner Doms', 157, 'm', 'height', 'adult'),
-  ('eiffelturm-hoehe', 'Höhe des Eiffelturms', 330, 'm', 'height', 'adult'),
-  ('fernsehturm', 'Höhe Berliner Fernsehturm', 368, 'm', 'height', 'adult'),
-  ('empire-state', 'Höhe Empire State Building', 443, 'm', 'height', 'adult'),
-  ('burj', 'Höhe Burj Khalifa', 828, 'm', 'height', 'adult'),
-  ('zugspitze', 'Höhe der Zugspitze', 2962, 'm', 'height', 'adult'),
-  ('matterhorn', 'Höhe des Matterhorns', 4478, 'm', 'height', 'adult'),
-  ('mont-blanc', 'Höhe des Mont Blanc', 4809, 'm', 'height', 'adult'),
-  ('k2', 'Höhe des K2', 8611, 'm', 'height', 'adult'),
-  ('everest', 'Höhe des Mount Everest', 8849, 'm', 'height', 'adult'),
-  ('olympus-mons', 'Höhe des Olympus Mons', 21229, 'm', 'height', 'adult'),
-  ('fussgaenger', 'Schrittgeschwindigkeit Mensch', 5, 'km/h', 'speed', 'adult'),
-  ('usain', 'Spitze Usain Bolt', 38, 'km/h', 'speed', 'adult'),
-  ('gepard', 'Spitze Gepard', 110, 'km/h', 'speed', 'adult'),
+  ('hamburg-koeln', 'Hamburg–Köln (Straße)', 430, 'km', 'distance', 'adult'),
+  ('a2', 'Autobahn A2', 486, 'km', 'distance', 'adult'),
+  ('a8', 'Autobahn A8', 505, 'km', 'distance', 'adult'),
+  ('a9', 'Autobahn A9', 529, 'km', 'distance', 'adult'),
+  ('berlin-muenchen', 'Berlin–München (Straße)', 585, 'km', 'distance', 'adult'),
+  ('berlin-wien', 'Berlin–Wien (Straße)', 680, 'km', 'distance', 'adult'),
+  ('a1', 'Autobahn A1', 732, 'km', 'distance', 'adult'),
+  ('hamburg-muenchen', 'Hamburg–München (Straße)', 790, 'km', 'distance', 'adult'),
+  ('eurostar', 'Eurostar, Höchstgeschwindigkeit', 300, 'km/h', 'speed', 'adult'),
+  ('ave', 'AVE, Höchstgeschwindigkeit', 310, 'km/h', 'speed', 'adult'),
+  ('tgv', 'TGV, Höchstgeschwindigkeit', 320, 'km/h', 'speed', 'adult'),
+  ('ice', 'ICE 3, Höchstgeschwindigkeit', 330, 'km/h', 'speed', 'adult'),
   ('wanderfalke', 'Sturzflug Wanderfalke', 320, 'km/h', 'speed', 'adult'),
-  ('ice', 'Höchstgeschwindigkeit ICE 3', 330, 'km/h', 'speed', 'adult'),
-  ('f1', 'Spitze Formel-1-Auto', 370, 'km/h', 'speed', 'adult'),
-  ('maglev', 'Transrapid Shanghai', 431, 'km/h', 'speed', 'adult'),
-  ('boeing747', 'Reisegeschwindigkeit Boeing 747', 900, 'km/h', 'speed', 'adult'),
-  ('schall', 'Schall in Luft (20 °C)', 1235, 'km/h', 'speed', 'adult'),
-  ('iss', 'Orbitalgeschwindigkeit der ISS', 27600, 'km/h', 'speed', 'adult'),
-  ('fluessigstickstoff', 'Siedepunkt Flüssigstickstoff', -196, '°C', 'temp', 'adult'),
-  ('antarktis', 'Kälterekord Antarktis', -89, '°C', 'temp', 'adult'),
-  ('mars', 'Durchschnittstemperatur Mars', -63, '°C', 'temp', 'adult'),
-  ('gefrierpunkt', 'Gefrierpunkt von Wasser', 0, '°C', 'temp', 'adult'),
-  ('kuehlschrank', 'Kühlschrank-Temperatur', 4, '°C', 'temp', 'adult'),
-  ('koerper', 'Körpertemperatur Mensch', 37, '°C', 'temp', 'adult'),
-  ('death-valley', 'Hitzerekord Death Valley', 57, '°C', 'temp', 'adult'),
-  ('siedepunkt', 'Siedepunkt von Wasser', 100, '°C', 'temp', 'adult'),
-  ('venus', 'Oberfläche der Venus', 464, '°C', 'temp', 'adult'),
-  ('sonne', 'Sonnenoberfläche', 5505, '°C', 'temp', 'adult'),
-  ('planeten', 'Planeten im Sonnensystem', 8, 'Stück', 'count', 'adult'),
-  ('bundeslaender', 'Bundesländer in Deutschland', 16, 'Stück', 'count', 'adult'),
-  ('eu', 'EU-Mitgliedstaaten', 27, 'Stück', 'count', 'adult'),
+  ('velaro', 'Velaro, Höchstgeschwindigkeit', 350, 'km/h', 'speed', 'adult'),
+  ('f1', 'Formel-1-Auto, Spitze', 370, 'km/h', 'speed', 'adult'),
+  ('chiron', 'Bugatti Chiron, Spitze', 420, 'km/h', 'speed', 'adult'),
+  ('helsinki', 'Helsinki, Juli-Mittel', 21, '°C', 'temp', 'adult'),
+  ('stockholm', 'Stockholm, Juli-Mittel', 22, '°C', 'temp', 'adult'),
+  ('london', 'London, Juli-Mittel', 23, '°C', 'temp', 'adult'),
+  ('berlin-temp', 'Berlin, Juli-Mittel', 24, '°C', 'temp', 'adult'),
+  ('paris', 'Paris, Juli-Mittel', 25, '°C', 'temp', 'adult'),
+  ('mailand-temp', 'Mailand, Juli-Mittel', 29, '°C', 'temp', 'adult'),
+  ('rom', 'Rom, Juli-Mittel', 30, '°C', 'temp', 'adult'),
+  ('madrid', 'Madrid, Juli-Mittel', 32, '°C', 'temp', 'adult'),
+  ('nato', 'NATO-Mitglieder', 32, 'Stück', 'count', 'adult'),
   ('zaehne', 'Zähne eines Erwachsenen', 32, 'Stück', 'count', 'adult'),
+  ('shakespeare', 'Shakespeare-Dramen', 39, 'Stück', 'count', 'adult'),
   ('chromosomen', 'Chromosomen des Menschen', 46, 'Stück', 'count', 'adult'),
+  ('us-staaten', 'US-Bundesstaaten', 50, 'Stück', 'count', 'adult'),
   ('spielkarten', 'Karten im französischen Blatt', 52, 'Stück', 'count', 'adult'),
+  ('afrika', 'Staaten in Afrika', 54, 'Stück', 'count', 'adult'),
   ('schach', 'Felder auf dem Schachbrett', 64, 'Stück', 'count', 'adult'),
-  ('klavier', 'Tasten eines Klaviers', 88, 'Stück', 'count', 'adult'),
-  ('elemente', 'Elemente im Periodensystem', 118, 'Stück', 'count', 'adult'),
-  ('un-staaten', 'UN-Mitgliedstaaten', 193, 'Stück', 'count', 'adult'),
-  ('knochen', 'Knochen eines Erwachsenen', 206, 'Stück', 'count', 'adult'),
-  ('sprachen', 'Sprachen der Welt (ca.)', 7000, 'Stück', 'count', 'adult'),
-  ('k-maus', 'Gewicht einer Hausmaus', 0.02, 'kg', 'weight', 'kids'),
-  ('k-katze', 'Gewicht einer Hauskatze', 4, 'kg', 'weight', 'kids'),
-  ('k-hund', 'Gewicht eines Labradors', 30, 'kg', 'weight', 'kids'),
-  ('k-wolf', 'Gewicht eines Wolfs', 40, 'kg', 'weight', 'kids'),
-  ('k-panda', 'Gewicht eines Großen Panda', 100, 'kg', 'weight', 'kids'),
-  ('k-pferd', 'Gewicht eines Pferds', 500, 'kg', 'weight', 'kids'),
-  ('k-giraffe-kg', 'Gewicht einer Giraffe', 800, 'kg', 'weight', 'kids'),
-  ('k-nilpferd', 'Gewicht eines Nilpferds', 1500, 'kg', 'weight', 'kids'),
-  ('k-elefant', 'Gewicht eines Elefanten', 6000, 'kg', 'weight', 'kids'),
-  ('k-blauwal', 'Gewicht eines Blauwals', 140000, 'kg', 'weight', 'kids'),
-  ('k-maus-h', 'Körperlänge einer Hausmaus', 0.08, 'm', 'height', 'kids'),
-  ('k-katze-h', 'Schulterhöhe einer Hauskatze', 0.25, 'm', 'height', 'kids'),
-  ('k-kind', 'Größe eines Kindes (8 Jahre)', 1.3, 'm', 'height', 'kids'),
-  ('k-korb', 'Höhe eines Basketballkorbs', 3.05, 'm', 'height', 'kids'),
-  ('k-trex-h', 'Hüfthöhe eines T-Rex', 4, 'm', 'height', 'kids'),
-  ('k-giraffe-h', 'Höhe einer Giraffe', 5.5, 'm', 'height', 'kids'),
-  ('k-eiffel', 'Höhe des Eiffelturms', 330, 'm', 'height', 'kids'),
-  ('k-everest', 'Höhe des Mount Everest', 8849, 'm', 'height', 'kids'),
-  ('k-wuerfel', 'Höchste Zahl auf einem Würfel', 6, 'Stück', 'count', 'kids'),
-  ('k-insekt', 'Beine eines Insekts', 6, 'Stück', 'count', 'kids'),
-  ('k-kontinente', 'Kontinente', 7, 'Stück', 'count', 'kids'),
-  ('k-spinne', 'Beine einer Spinne', 8, 'Stück', 'count', 'kids'),
-  ('k-planeten', 'Planeten im Sonnensystem', 8, 'Stück', 'count', 'kids'),
-  ('k-milchzaehne', 'Milchzähne', 20, 'Stück', 'count', 'kids'),
-  ('k-karten', 'Karten in einem Blatt', 52, 'Stück', 'count', 'kids'),
-  ('k-schach', 'Felder auf dem Schachbrett', 64, 'Stück', 'count', 'kids'),
-  ('k-schnecke', 'Weinbergschnecke', 0.05, 'km/h', 'speed', 'kids'),
-  ('k-gehen', 'Mensch zu Fuß', 5, 'km/h', 'speed', 'kids'),
-  ('k-fahrrad', 'Fahrrad im Alltag', 15, 'km/h', 'speed', 'kids'),
-  ('k-bolt', 'Usain Bolt', 38, 'km/h', 'speed', 'kids'),
-  ('k-gepard', 'Gepard', 110, 'km/h', 'speed', 'kids'),
-  ('k-ice', 'ICE', 330, 'km/h', 'speed', 'kids'),
-  ('k-fussball', 'Länge eines Fußballfelds', 0.105, 'km', 'distance', 'kids'),
-  ('k-marathon', 'Marathon', 42, 'km', 'distance', 'kids'),
-  ('k-berlin-muc', 'Berlin–München', 585, 'km', 'distance', 'kids'),
-  ('k-rhein', 'Länge des Rheins', 1233, 'km', 'distance', 'kids'),
-  ('k-aequator', 'Umfang des Äquators', 40075, 'km', 'distance', 'kids'),
-  ('k-mond', 'Abstand Erde–Mond', 384400, 'km', 'distance', 'kids'),
-  ('k-micky', 'Mickey Mouse', 1928, 'Jahr', 'year', 'kids'),
+  ('k-de', 'Deutschland', 84, 'Mio.', 'population', 'kids'),
+  ('k-it', 'Italien', 59, 'Mio.', 'population', 'kids'),
+  ('k-fr', 'Frankreich', 68, 'Mio.', 'population', 'kids'),
+  ('k-uk', 'Vereinigtes Königreich', 67, 'Mio.', 'population', 'kids'),
+  ('k-es', 'Spanien', 48, 'Mio.', 'population', 'kids'),
+  ('k-pl', 'Polen', 38, 'Mio.', 'population', 'kids'),
+  ('k-it-km2', 'Italien', 301340, 'km²', 'area', 'kids'),
+  ('k-pl-km2', 'Polen', 312679, 'km²', 'area', 'kids'),
+  ('k-de-km2', 'Deutschland', 357588, 'km²', 'area', 'kids'),
+  ('k-jp-km2', 'Japan', 377975, 'km²', 'area', 'kids'),
+  ('k-fr-km2', 'Frankreich', 543940, 'km²', 'area', 'kids'),
+  ('k-liberty', 'Freiheitsstatue', 93, 'm', 'height', 'kids'),
+  ('k-dom', 'Kölner Dom', 157, 'm', 'height', 'kids'),
+  ('k-eiffel', 'Eiffelturm', 330, 'm', 'height', 'kids'),
+  ('k-berlin-h', 'Berliner Fernsehturm', 368, 'm', 'height', 'kids'),
+  ('k-mensch', 'Mensch', 77, 'kg', 'weight', 'kids'),
+  ('k-panda', 'Panda', 100, 'kg', 'weight', 'kids'),
+  ('k-gorilla', 'Gorilla', 160, 'kg', 'weight', 'kids'),
+  ('k-loewe', 'Löwe, Männchen', 190, 'kg', 'weight', 'kids'),
+  ('k-tiger', 'Tiger, Männchen', 220, 'kg', 'weight', 'kids'),
+  ('k-helm', 'Fahrradhelm', 80, '€', 'price', 'kids'),
+  ('k-roller', 'Tretroller', 120, '€', 'price', 'kids'),
+  ('k-fahrrad-preis', 'Kinderfahrrad', 200, '€', 'price', 'kids'),
+  ('k-switch', 'Nintendo Switch', 300, '€', 'price', 'kids'),
   ('k-lego', 'Lego-Noppenstein', 1958, 'Jahr', 'year', 'kids'),
-  ('k-mond-k', 'Mondlandung', 1969, 'Jahr', 'year', 'kids'),
+  ('k-mond', 'Mondlandung', 1969, 'Jahr', 'year', 'kids'),
   ('k-pokemon', 'Pokémon (Game Boy)', 1996, 'Jahr', 'year', 'kids'),
   ('k-hp', 'Harry Potter, Band 1', 1997, 'Jahr', 'year', 'kids'),
   ('k-youtube', 'Start von YouTube', 2005, 'Jahr', 'year', 'kids'),
-  ('k-eis', 'Schmelzpunkt von Eis', 0, '°C', 'temp', 'kids'),
-  ('k-kuehl', 'Kühlschrank', 4, '°C', 'temp', 'kids'),
+  ('k-bolt', 'Usain Bolt', 38, 'km/h', 'speed', 'kids'),
+  ('k-pferd-kmh', 'Pferd im Galopp', 45, 'km/h', 'speed', 'kids'),
+  ('k-windhund', 'Windhund', 70, 'km/h', 'speed', 'kids'),
+  ('k-gepard', 'Gepard', 110, 'km/h', 'speed', 'kids'),
+  ('k-prag', 'Berlin–Prag', 350, 'km', 'distance', 'kids'),
+  ('k-koeln', 'Hamburg–Köln', 430, 'km', 'distance', 'kids'),
+  ('k-berlin-muc', 'Berlin–München', 585, 'km', 'distance', 'kids'),
+  ('k-hh-muc', 'Hamburg–München', 790, 'km', 'distance', 'kids'),
+  ('k-zimmer', 'Zimmertemperatur', 20, '°C', 'temp', 'kids'),
+  ('k-sommer', 'Sommertag', 28, '°C', 'temp', 'kids'),
   ('k-koerper', 'Körpertemperatur', 37, '°C', 'temp', 'kids'),
   ('k-wueste', 'Wüste am Tag', 45, '°C', 'temp', 'kids'),
-  ('k-backofen', 'Backofen für Pizza', 250, '°C', 'temp', 'kids'),
-  ('k-haribo', 'Tüte Gummibärchen', 2, '€', 'price', 'kids'),
-  ('k-kino', 'Kinokarte Kind', 8, '€', 'price', 'kids'),
-  ('k-ball', 'Standard-Fußball', 25, '€', 'price', 'kids'),
-  ('k-fahrrad-preis', 'Kinderfahrrad', 200, '€', 'price', 'kids'),
-  ('k-switch', 'Nintendo Switch', 300, '€', 'price', 'kids');
+  ('k-insekt', 'Beine eines Insekts', 6, 'Stück', 'count', 'kids'),
+  ('k-kontinente', 'Kontinente', 7, 'Stück', 'count', 'kids'),
+  ('k-planeten', 'Planeten im Sonnensystem', 8, 'Stück', 'count', 'kids'),
+  ('k-spinne', 'Beine einer Spinne', 8, 'Stück', 'count', 'kids'),
+  ('k-milchzaehne', 'Milchzähne', 20, 'Stück', 'count', 'kids');
 
 CREATE TYPE deal_result AS (
   current_card jsonb,
@@ -483,6 +466,69 @@ AS $$
   SELECT create_room(p_player_id, p_name, 3);
 $$;
 
+CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_name text := trim(p_name);
+  v_code text;
+  v_players jsonb;
+  r rooms%ROWTYPE;
+  i integer;
+  v_catalog jsonb;
+  d deal_result;
+  v_lives integer;
+BEGIN
+  IF p_player_id IS NULL OR length(p_player_id) < 8 OR length(p_player_id) > 80 THEN
+    RAISE EXCEPTION 'Ungültige Spieler-ID.';
+  END IF;
+  IF v_name IS NULL OR length(v_name) < 1 OR length(v_name) > 20 THEN
+    RAISE EXCEPTION 'Bitte gib einen Namen (1–20 Zeichen) ein.';
+  END IF;
+  IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
+    RAISE EXCEPTION 'Bitte wähle Erwachsene oder Kinder.';
+  END IF;
+
+  v_players := jsonb_build_array(jsonb_build_object('id', p_player_id, 'name', v_name));
+  v_lives := CASE WHEN p_mode = 'kids' THEN 5 ELSE 3 END;
+  v_catalog := load_catalog(p_mode);
+  d := deal_opening_pair(v_catalog);
+  IF d.current_card IS NULL OR d.next_card IS NULL THEN
+    RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
+  END IF;
+
+  FOR i IN 1..24 LOOP
+    v_code :=
+      chr(65 + floor(random() * 26)::int) ||
+      chr(65 + floor(random() * 26)::int) ||
+      chr(65 + floor(random() * 26)::int) ||
+      chr(65 + floor(random() * 26)::int);
+    BEGIN
+      INSERT INTO rooms (
+        room_code, players, host_id, game_status, max_players, votes, selected_mode,
+        current_player_index, lives, streak, current_card, next_card, remaining_cards,
+        used_card_ids, last_result, turn_nonce
+      ) VALUES (
+        v_code, v_players, p_player_id, 'playing', 1,
+        jsonb_build_object(p_player_id, p_mode), p_mode,
+        0, v_lives, 0, d.current_card, d.next_card, d.remaining,
+        used_card_ids(v_catalog, d.remaining), NULL, 1
+      )
+      RETURNING * INTO r;
+      RETURN to_jsonb(r);
+    EXCEPTION
+      WHEN unique_violation THEN
+        NULL;
+    END;
+  END LOOP;
+
+  RAISE EXCEPTION 'Raumcode konnte nicht erzeugt werden. Bitte nochmal versuchen.';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION join_room(p_room_code text, p_player_id text, p_name text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -584,7 +630,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text)
+CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text, p_mode text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -618,7 +664,14 @@ BEGIN
     RAISE EXCEPTION 'Es müssen genau % Spieler da sein.', v_max;
   END IF;
 
-  v_mode := winning_mode(r.votes, r.host_id);
+  IF v_max = 1 THEN
+    IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
+      RAISE EXCEPTION 'Bitte wähle Erwachsene oder Kinder.';
+    END IF;
+    v_mode := p_mode;
+  ELSE
+    v_mode := winning_mode(r.votes, r.host_id);
+  END IF;
   v_lives := CASE WHEN v_mode = 'kids' THEN 5 ELSE 3 END;
   v_catalog := load_catalog(v_mode);
   d := deal_opening_pair(v_catalog);
@@ -643,6 +696,15 @@ BEGIN
 
   RETURN to_jsonb(r);
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT start_game(p_room_code, p_player_id, NULL);
 $$;
 
 CREATE OR REPLACE FUNCTION submit_guess(
@@ -851,7 +913,9 @@ GRANT EXECUTE ON FUNCTION create_room(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_room(text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION join_room(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION vote_mode(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION start_solo(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_game(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION start_game(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION submit_guess(text, text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION restart_game(text, text) TO anon, authenticated;
 

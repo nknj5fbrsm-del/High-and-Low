@@ -9,10 +9,11 @@ describe('formatValue', () => {
     expect(formatValue(1989, 'Jahr')).toBe('1989')
   })
 
-  it('formatiert Euro und Temperatur', () => {
+  it('formatiert Euro, Temperatur und Millionen', () => {
     expect(formatValue(999, '€')).toBe('999 €')
     expect(formatValue(-63, '°C')).toBe('-63 °C')
     expect(formatValue(0.02, 'kg')).toBe('0,02 kg')
+    expect(formatValue(1.86, 'Mio.')).toBe('1,86 Mio.')
   })
 })
 

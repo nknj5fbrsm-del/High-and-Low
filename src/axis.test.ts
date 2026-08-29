@@ -1,4 +1,4 @@
-import { guessLabels, livesForMode, streakTitle, voteCounts, winningMode } from './axis.ts'
+import { categoryLabel, dealerLine, guessLabels, livesForMode, streakTitle, voteCounts, winningMode } from './axis.ts'
 
 describe('guessLabels', () => {
   it('nimmt die Bedeutung, nicht nur die Einheit', () => {
@@ -10,6 +10,25 @@ describe('guessLabels', () => {
     expect(guessLabels('count')).toEqual({ higher: 'MEHR', lower: 'WENIGER' })
     expect(guessLabels('distance')).toEqual({ higher: 'WEITER', lower: 'KÜRZER' })
     expect(guessLabels('height')).toEqual({ higher: 'HÖHER', lower: 'NIEDRIGER' })
+    expect(guessLabels('population')).toEqual({ higher: 'MEHR', lower: 'WENIGER' })
+    expect(guessLabels('area')).toEqual({ higher: 'GRÖSSER', lower: 'KLEINER' })
+  })
+})
+
+describe('categoryLabel', () => {
+  it('setzt die Kategorie in Kapitälchen-Sinn', () => {
+    expect(categoryLabel('population')).toBe('EINWOHNER')
+    expect(categoryLabel('area')).toBe('FLÄCHE')
+    expect(categoryLabel('weight')).toBe('GEWICHT')
+  })
+})
+
+describe('dealerLine', () => {
+  it('kommentiert nur enge Paare, nie einen Mitspieler', () => {
+    expect(dealerLine(2.04, 1.86)).toBe('knapp!')
+    expect(dealerLine(83879, 78871)).toBe('knapp!')
+    expect(dealerLine(650, 549)).toBe('mutig.')
+    expect(dealerLine(443, 310)).toBeNull()
   })
 })
 
@@ -47,7 +66,7 @@ describe('streakTitle', () => {
   it('vergibt Titel nach Streak', () => {
     expect(streakTitle(0)).toBe('Noch kalt')
     expect(streakTitle(3)).toBe('Fuß in der Tür')
-    expect(streakTitle(12)).toBe('Team im Flow')
+    expect(streakTitle(12)).toBe('Im Fluss')
     expect(streakTitle(40)).toBe('Unaufhaltsam')
   })
 })

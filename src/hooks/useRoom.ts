@@ -180,10 +180,30 @@ export function useRoom() {
     [playerId, runRpc],
   )
 
-  const startGame = useCallback(async () => {
-    if (!room) return
-    await runRpc('start_game', { p_room_code: room.room_code, p_player_id: playerId })
-  }, [playerId, room, runRpc])
+  const startGame = useCallback(
+    async (mode?: GameMode) => {
+      if (!room) return
+      await runRpc('start_game', {
+        p_room_code: room.room_code,
+        p_player_id: playerId,
+        p_mode: mode ?? null,
+      })
+    },
+    [playerId, room, runRpc],
+  )
+
+  const startSolo = useCallback(
+    async (name: string, mode: GameMode) => {
+      const trimmed = trimName(name)
+      setIdentity(saveIdentity({ name: trimmed }))
+      await runRpc('start_solo', {
+        p_player_id: playerId,
+        p_name: trimmed,
+        p_mode: mode,
+      })
+    },
+    [playerId, runRpc],
+  )
 
   const voteMode = useCallback(
     async (mode: GameMode) => {
@@ -232,6 +252,7 @@ export function useRoom() {
     createRoom,
     joinRoom,
     startGame,
+    startSolo,
     voteMode,
     submitGuess,
     restartGame,

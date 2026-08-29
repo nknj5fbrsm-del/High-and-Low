@@ -65,3 +65,25 @@ export function saveIdentity(patch: Partial<Identity>): Identity {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   return next
 }
+
+const BEST_KEY = 'high-low-team-stapel.soloBest'
+
+export function loadSoloBest(): number {
+  try {
+    const n = Number(localStorage.getItem(BEST_KEY))
+    if (Number.isFinite(n) && n > 0) return Math.floor(n)
+  } catch {
+    // private mode
+  }
+  return 0
+}
+
+export function noteSoloStreak(streak: number): number {
+  const best = Math.max(loadSoloBest(), Math.max(0, Math.floor(streak)))
+  try {
+    localStorage.setItem(BEST_KEY, String(best))
+  } catch {
+    // private mode
+  }
+  return best
+}
