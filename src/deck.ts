@@ -20,10 +20,10 @@ export const ADULT_DECK: FactCard[] = [
   c('saturn-v', 'Gewicht Saturn V (betankt)', 2970000, 'kg', 'weight'),
 
   c('doener', 'Preis eines Döners', 7, '€', 'price'),
-  c('deutschlandticket', 'Deutschlandticket (Monat)', 58, '€', 'price'),
-  c('ps5', 'PlayStation 5', 400, '€', 'price'),
+  c('deutschlandticket', 'Deutschlandticket (Monat, 2026)', 63, '€', 'price'),
+  c('ps5', 'PlayStation 5 mit Laufwerk (UVP)', 650, '€', 'price'),
   c('iphone-16', 'iPhone 16', 999, '€', 'price'),
-  c('bahncard-100', 'BahnCard 100, 2. Klasse', 4500, '€', 'price'),
+  c('bahncard-100', 'BahnCard 100, 2. Klasse', 4899, '€', 'price'),
   c('golf-neupreis', 'Neupreis VW Golf 8', 28000, '€', 'price'),
   c('median-gehalt', 'Median-Jahresgehalt brutto (DE)', 45000, '€', 'price'),
   c('gold-kg', 'Kilogramm Feingold', 78000, '€', 'price'),

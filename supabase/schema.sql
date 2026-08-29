@@ -18,6 +18,7 @@ DROP FUNCTION IF EXISTS pick_from_unit(jsonb, text);
 DROP FUNCTION IF EXISTS pick_from_axis(jsonb, text);
 DROP FUNCTION IF EXISTS load_catalog();
 DROP FUNCTION IF EXISTS load_catalog(text);
+DROP TRIGGER IF EXISTS rooms_updated_at ON rooms;
 DROP FUNCTION IF EXISTS set_rooms_updated_at();
 DROP TYPE IF EXISTS deal_result CASCADE;
 
@@ -68,6 +69,13 @@ ALTER TABLE rooms ADD COLUMN IF NOT EXISTS max_players integer NOT NULL DEFAULT 
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS votes jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_mode text NOT NULL DEFAULT 'adult';
 
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_max_players_range;
+ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_range CHECK (max_players BETWEEN 2 AND 6);
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_mode_ok;
+ALTER TABLE rooms ADD CONSTRAINT rooms_selected_mode_ok CHECK (selected_mode IN ('adult', 'kids'));
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_votes_object;
+ALTER TABLE rooms ADD CONSTRAINT rooms_votes_object CHECK (jsonb_typeof(votes) = 'object');
+
 TRUNCATE fact_cards;
 
 INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
@@ -84,10 +92,10 @@ INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
   ('a380', 'Gewicht Airbus A380 (leer)', 277000, 'kg', 'weight', 'adult'),
   ('saturn-v', 'Gewicht Saturn V (betankt)', 2970000, 'kg', 'weight', 'adult'),
   ('doener', 'Preis eines Döners', 7, '€', 'price', 'adult'),
-  ('deutschlandticket', 'Deutschlandticket (Monat)', 58, '€', 'price', 'adult'),
-  ('ps5', 'PlayStation 5', 400, '€', 'price', 'adult'),
+  ('deutschlandticket', 'Deutschlandticket (Monat, 2026)', 63, '€', 'price', 'adult'),
+  ('ps5', 'PlayStation 5 mit Laufwerk (UVP)', 650, '€', 'price', 'adult'),
   ('iphone-16', 'iPhone 16', 999, '€', 'price', 'adult'),
-  ('bahncard-100', 'BahnCard 100, 2. Klasse', 4500, '€', 'price', 'adult'),
+  ('bahncard-100', 'BahnCard 100, 2. Klasse', 4899, '€', 'price', 'adult'),
   ('golf-neupreis', 'Neupreis VW Golf 8', 28000, '€', 'price', 'adult'),
   ('median-gehalt', 'Median-Jahresgehalt brutto (DE)', 45000, '€', 'price', 'adult'),
   ('gold-kg', 'Kilogramm Feingold', 78000, '€', 'price', 'adult'),
@@ -445,7 +453,15 @@ BEGIN
       chr(65 + floor(random() * 26)::int);
     BEGIN
       INSERT INTO rooms (room_code, players, host_id, game_status, max_players, votes, selected_mode)
-      VALUES (v_code, v_players, p_player_id, 'lobby', v_max, '{}'::jsonb, 'adult')
+      VALUES (
+        v_code,
+        v_players,
+        p_player_id,
+        'lobby',
+        v_max,
+        jsonb_build_object(p_player_id, 'adult'),
+        'adult'
+      )
       RETURNING * INTO r;
       RETURN to_jsonb(r);
     EXCEPTION
@@ -456,6 +472,15 @@ BEGIN
 
   RAISE EXCEPTION 'Raumcode konnte nicht erzeugt werden. Bitte nochmal versuchen.';
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION create_room(p_player_id text, p_name text)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT create_room(p_player_id, p_name, 3);
 $$;
 
 CREATE OR REPLACE FUNCTION join_room(p_room_code text, p_player_id text, p_name text)
@@ -822,6 +847,7 @@ REVOKE ALL ON TABLE fact_cards FROM anon, authenticated;
 REVOKE INSERT, UPDATE, DELETE ON TABLE rooms FROM anon, authenticated;
 GRANT SELECT ON TABLE rooms TO anon, authenticated;
 
+GRANT EXECUTE ON FUNCTION create_room(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_room(text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION join_room(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION vote_mode(text, text, text) TO anon, authenticated;

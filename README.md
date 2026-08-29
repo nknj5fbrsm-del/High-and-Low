@@ -8,9 +8,9 @@ Zwei Modi: **Erwachsene** (härtere Fakten, 3 Leben) und **Kinder** (leichterer 
 
 Keine neuen Environment-Variablen. Die alten `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` bleiben.
 
-1. Diesen Pull Request mergen. Vercel deployt automatisch.
-2. Im Supabase-Dashboard: **SQL Editor → New query**. Den kompletten Inhalt von `supabase/schema.sql` einfügen und ausführen (ja, die ganze Datei nochmal — das Skript ist dafür gebaut).
-3. Offene Räume danach neu starten bzw. neu erstellen. Alte Partien kennen die neuen Karten/Modi nicht zuverlässig.
+1. Im Supabase-Dashboard: **SQL Editor → New query**. Den kompletten Inhalt von `supabase/schema.sql` einfügen und ausführen (ja, die ganze Datei nochmal — das Skript ist dafür gebaut). Zuerst die Datenbank, dann die App.
+2. Diesen Pull Request mergen. Vercel deployt automatisch.
+3. Offene Räume danach neu erstellen. Alte Partien kennen die neuen Karten/Modi nicht zuverlässig.
 
 Das SQL legt bzw. aktualisiert:
 
