@@ -299,7 +299,7 @@ export function LobbyScreen({
                 count={counts.adult}
                 disabled={busy}
                 onVote={onVote}
-                detail="3 Leben, enge Fakten"
+                detail="3 Leben, prüfbare Fakten"
               />
               <ModeVoteButton
                 mode="kids"

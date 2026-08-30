@@ -70,11 +70,13 @@ function pickPair(
 ): [FactCard, FactCard] | null {
   if (pairs.length === 0) return null
   const anchors = pairs.map(([left]) => left)
-  const current = pick(anchors)
+  const chosen = pick(anchors)
   const mates = pairs
-    .filter(([left, right]) => left.id === current.id || right.id === current.id)
-    .map(([left, right]) => (left.id === current.id ? right : left))
-  const next = pick(mates)
+    .filter(([left, right]) => left.id === chosen.id || right.id === chosen.id)
+    .map(([left, right]) => (left.id === chosen.id ? right : left))
+  const other = pick(mates)
+  const current = pick([chosen, other])
+  const next = current.id === chosen.id ? other : chosen
   return [current, next]
 }
 
@@ -96,18 +98,8 @@ export function dealFreshPair(
   }
 
   const recycled = pickPair(listValidPairs(catalog, density, excludeAxis), pick)
-  if (recycled) {
-    const [current, next] = recycled
-    return {
-      current,
-      next,
-      remaining: withoutIds(catalog, [current.id, next.id]),
-    }
-  }
-
-  const fallback = pickPair(listValidPairs(catalog, density, null), pick)
-  if (!fallback) return null
-  const [current, next] = fallback
+  if (!recycled) return null
+  const [current, next] = recycled
   return {
     current,
     next,

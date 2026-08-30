@@ -167,6 +167,18 @@ describe('dealFreshPair', () => {
     expect(deal?.current.id).not.toBe(right.id)
     expect(deal?.current.axis).not.toBe(right.axis)
   })
+
+  it('gibt null zurück statt dieselbe Kategorie nochmal zu legen', () => {
+    const onlyKg = [kg('a', 10), kg('b', 20), kg('c', 30)]
+    expect(dealFreshPair(onlyKg, onlyKg, 'locker', 'weight', pickFirst)).toBeNull()
+  })
+
+  it('kann die linke und rechte Karte tauschen', () => {
+    const pickLast = (cards: FactCard[]) => cards[cards.length - 1]
+    const deal = dealOpeningPair([m('d', 100), m('e', 300)], 'locker', pickLast)
+    expect(deal?.current.id).toBe('e')
+    expect(deal?.next.id).toBe('d')
+  })
 })
 
 describe('resolveGuess', () => {

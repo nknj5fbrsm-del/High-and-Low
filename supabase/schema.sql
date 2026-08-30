@@ -471,23 +471,21 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  IF v_a IS NULL THEN
-    v_source := coalesce(p_catalog, '[]'::jsonb);
-    SELECT a, b INTO v_a, v_b
-    FROM jsonb_array_elements(v_source) a
-    JOIN jsonb_array_elements(v_source) b ON a->>'id' < b->>'id'
-    WHERE pair_fits_density(a, b, v_density)
-    ORDER BY random()
-    LIMIT 1;
-  END IF;
-
   IF v_a IS NULL OR v_b IS NULL THEN
     RETURN (NULL, NULL, coalesce(p_pool, '[]'::jsonb));
   END IF;
 
+  IF random() < 0.5 THEN
+    RETURN (
+      v_a,
+      v_b,
+      remove_card_id(remove_card_id(v_source, v_a->>'id'), v_b->>'id')
+    );
+  END IF;
+
   RETURN (
-    v_a,
     v_b,
+    v_a,
     remove_card_id(remove_card_id(v_source, v_a->>'id'), v_b->>'id')
   );
 END;
