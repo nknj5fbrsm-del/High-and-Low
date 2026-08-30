@@ -1,4 +1,4 @@
-import { categoryLabel, dealerLine, guessLabels, livesForMode, streakTitle, voteCounts, winningMode } from './axis.ts'
+import { categoryLabel, dealerLine, densityLabel, guessLabels, livesForMode, streakTitle, voteCounts, winningMode } from './axis.ts'
 
 describe('guessLabels', () => {
   it('nimmt die Bedeutung, nicht nur die Einheit', () => {
@@ -20,6 +20,15 @@ describe('categoryLabel', () => {
     expect(categoryLabel('population')).toBe('EINWOHNER')
     expect(categoryLabel('area')).toBe('FLÄCHE')
     expect(categoryLabel('weight')).toBe('GEWICHT')
+    expect(categoryLabel('year')).toBe('GEBURTSJAHR')
+  })
+})
+
+describe('densityLabel', () => {
+  it('zeigt nur deutsche Dichte-Namen', () => {
+    expect(densityLabel('locker')).toBe('Locker')
+    expect(densityLabel('knackig')).toBe('Knackig')
+    expect(densityLabel('haarscharf')).toBe('Haarscharf')
   })
 })
 
@@ -27,8 +36,10 @@ describe('dealerLine', () => {
   it('kommentiert nur enge Paare, nie einen Mitspieler', () => {
     expect(dealerLine(2.04, 1.86)).toBe('knapp!')
     expect(dealerLine(83879, 78871)).toBe('knapp!')
-    expect(dealerLine(650, 549)).toBe('mutig.')
+    expect(dealerLine(100, 80)).toBe('mutig.')
     expect(dealerLine(443, 310)).toBeNull()
+    expect(dealerLine(1756, 1770, 'year')).toBe('knapp!')
+    expect(dealerLine(1853, 1881, 'year')).toBe('mutig.')
   })
 })
 

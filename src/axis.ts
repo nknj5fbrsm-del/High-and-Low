@@ -1,4 +1,4 @@
-import type { Axis, GameMode, ModeVotes } from './types.ts'
+import type { Axis, Density, GameMode, ModeVotes } from './types.ts'
 import { KIDS_LIVES, MAX_LIVES } from './types.ts'
 
 export const AXIS_LABELS: Record<Axis, { higher: string; lower: string }> = {
@@ -19,7 +19,7 @@ export const AXIS_CATEGORY: Record<Axis, string> = {
   price: 'PREIS',
   height: 'HÖHE',
   distance: 'STRECKE',
-  year: 'JAHR',
+  year: 'GEBURTSJAHR',
   speed: 'TEMPO',
   temp: 'TEMPERATUR',
   count: 'ANZAHL',
@@ -69,8 +69,20 @@ export function modeLabel(mode: GameMode): string {
   return mode === 'kids' ? 'Kinder' : 'Erwachsene'
 }
 
+export function densityLabel(density: Density): string {
+  if (density === 'locker') return 'Locker'
+  if (density === 'haarscharf') return 'Haarscharf'
+  return 'Knackig'
+}
+
 /** Kurze Dealer-Zeile nach der Auflösung. Kein Fake-Mitspieler. */
-export function dealerLine(a: number, b: number): string | null {
+export function dealerLine(a: number, b: number, axis?: Axis): string | null {
+  if (axis === 'year') {
+    const gap = Math.abs(a - b)
+    if (gap > 0 && gap < 25) return 'knapp!'
+    if (gap < 60) return 'mutig.'
+    return null
+  }
   const hi = Math.max(Math.abs(a), Math.abs(b))
   const lo = Math.min(Math.abs(a), Math.abs(b))
   if (lo === 0) return null

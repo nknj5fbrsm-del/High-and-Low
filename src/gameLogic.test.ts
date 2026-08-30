@@ -1,8 +1,8 @@
-import { ADULT_DECK, KIDS_DECK, axesInDeck, axisValueRatio } from './deck.ts'
+import { ADULT_DECK, KIDS_DECK, axesInDeck } from './deck.ts'
 import {
   canFormOpeningPair,
   cardsOfAxis,
-  dealAfterReference,
+  dealFreshPair,
   dealOpeningPair,
   isGuessCorrect,
   isMyTurn,
@@ -33,7 +33,7 @@ const miniDeck: FactCard[] = [
   kg('b', 20),
   kg('c', 30),
   m('d', 100),
-  m('e', 200),
+  m('e', 300),
 ]
 
 describe('Deck', () => {
@@ -75,19 +75,25 @@ describe('Deck', () => {
     }
   })
 
-  it('hält Erwachsenen-Paare eng (Ratio ≤ 2, nie über 3)', () => {
-    for (const axis of axesInDeck(ADULT_DECK)) {
-      const group = cardsOfAxis(ADULT_DECK, axis)
-      const ratio = axisValueRatio(group)
-      expect(ratio, axis).toBeLessThanOrEqual(2.01)
-      expect(ratio, axis).toBeLessThanOrEqual(3)
+  it('hat keine Elektronik-Preise', () => {
+    for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
+      expect(card.axis).not.toBe('price')
+      expect(card.unit).not.toBe('€')
     }
+    expect(ADULT_DECK.find((card) => card.id === 'iphone-16')).toBeUndefined()
+    expect(ADULT_DECK.find((card) => card.id === 'steam-deck')).toBeUndefined()
   })
 
-  it('hält Kinder-Paare unter Ratio 4', () => {
-    for (const axis of axesInDeck(KIDS_DECK)) {
-      expect(axisValueRatio(cardsOfAxis(KIDS_DECK, axis)), axis).toBeLessThanOrEqual(4.01)
-    }
+  it('enthält Geburtsjahre der vorgesehenen Künstler', () => {
+    expect(ADULT_DECK.find((card) => card.id === 'mozart')?.value).toBe(1756)
+    expect(ADULT_DECK.find((card) => card.id === 'beethoven')?.value).toBe(1770)
+    expect(ADULT_DECK.find((card) => card.id === 'picasso')?.value).toBe(1881)
+    expect(ADULT_DECK.find((card) => card.id === 'vangogh')?.value).toBe(1853)
+    expect(ADULT_DECK.find((card) => card.id === 'bach')?.value).toBe(1685)
+    expect(KIDS_DECK.find((card) => card.id === 'k-mozart')?.value).toBe(1756)
+    expect(KIDS_DECK.find((card) => card.id === 'k-beethoven')?.value).toBe(1770)
+    expect(KIDS_DECK.find((card) => card.id === 'k-bach')?.value).toBe(1685)
+    expect(KIDS_DECK.find((card) => card.id === 'k-picasso')?.value).toBe(1881)
   })
 
   it('enthält die vorgesehenen Vergleichspaare', () => {
@@ -129,36 +135,37 @@ describe('isGuessCorrect', () => {
 })
 
 describe('dealOpeningPair', () => {
-  it('zieht Referenz und nächste Karte derselben Achse', () => {
-    const deal = dealOpeningPair(miniDeck, pickFirst)
+  it('zieht zwei Karten derselben Achse passend zur Dichte', () => {
+    const deal = dealOpeningPair(miniDeck, 'locker', pickFirst)
     expect(deal).not.toBeNull()
     expect(deal?.current.axis).toBe(deal?.next.axis)
     expect(deal?.current.id).not.toBe(deal?.next.id)
     expect(deal?.remaining).toHaveLength(miniDeck.length - 2)
   })
 
-  it('gibt null zurück, wenn keine Einheit zwei Karten hat', () => {
-    expect(dealOpeningPair([kg('a', 1), m('d', 2)], pickFirst)).toBeNull()
+  it('gibt null zurück, wenn kein Dichte-Paar existiert', () => {
+    expect(dealOpeningPair([kg('a', 1), m('d', 2)], 'locker', pickFirst)).toBeNull()
   })
 })
 
-describe('dealAfterReference', () => {
-  it('zieht die nächste Karte derselben Einheit', () => {
-    const current = kg('a', 10)
-    const remaining = [kg('b', 20), kg('c', 30), m('d', 100), m('e', 200)]
-    const deal = dealAfterReference(remaining, miniDeck, current, pickFirst)
-    expect(deal.next.unit).toBe('kg')
-    expect(deal.current.id).toBe('a')
-    expect(deal.next.id).toBe('b')
+describe('dealFreshPair', () => {
+  it('legt ein komplett neues Paar und wechselt die Kategorie', () => {
+    const remaining = [kg('a', 10), kg('b', 20), kg('c', 30), m('d', 100), m('e', 300)]
+    const deal = dealFreshPair(remaining, miniDeck, 'locker', 'weight', pickFirst)
+    expect(deal).not.toBeNull()
+    expect(deal?.current.axis).toBe('height')
+    expect(deal?.next.axis).toBe('height')
+    expect(deal?.current.id).not.toBe('a')
+    expect(['d', 'e']).toContain(deal?.current.id)
+    expect(['d', 'e']).toContain(deal?.next.id)
   })
 
-  it('startet eine neue Kategorie, wenn die Einheit leer ist', () => {
-    const current = kg('c', 30)
-    const remaining = [m('d', 100), m('e', 200)]
-    const deal = dealAfterReference(remaining, miniDeck, current, pickFirst)
-    expect(deal.current.unit).toBe('m')
-    expect(deal.next.unit).toBe('m')
-    expect(deal.current.id).not.toBe('c')
+  it('macht die rechte Karte nicht zur nächsten linken', () => {
+    const right = kg('b', 20)
+    const remaining = [kg('c', 30), m('d', 100), m('e', 300)]
+    const deal = dealFreshPair(remaining, miniDeck, 'locker', right.axis, pickFirst)
+    expect(deal?.current.id).not.toBe(right.id)
+    expect(deal?.current.axis).not.toBe(right.axis)
   })
 })
 
@@ -166,7 +173,7 @@ describe('resolveGuess', () => {
   it('erhöht den Streak und rotiert den Zug bei richtig', () => {
     const current = kg('a', 10)
     const next = kg('b', 20)
-    const remaining = [kg('c', 30), m('d', 100), m('e', 200)]
+    const remaining = [kg('c', 30), m('d', 100), m('e', 300)]
     const result = resolveGuess({
       current,
       next,
@@ -178,6 +185,7 @@ describe('resolveGuess', () => {
       playerCount: 3,
       guess: 'higher',
       turnNonce: 7,
+      density: 'locker',
       pick: pickFirst,
     })
 
@@ -187,8 +195,9 @@ describe('resolveGuess', () => {
     expect(result.currentPlayerIndex).toBe(1)
     expect(result.turnNonce).toBe(8)
     expect(result.gameStatus).toBe('playing')
-    expect(result.current.id).toBe('b')
-    expect(result.next.unit).toBe('kg')
+    expect(result.current.id).not.toBe('b')
+    expect(result.current.axis).not.toBe('weight')
+    expect(result.current.axis).toBe(result.next.axis)
     expect(result.lastResult.card.id).toBe('b')
   })
 
@@ -196,7 +205,7 @@ describe('resolveGuess', () => {
     const result = resolveGuess({
       current: kg('a', 10),
       next: kg('b', 20),
-      remaining: [kg('c', 30), m('d', 100), m('e', 200)],
+      remaining: [kg('c', 30), m('d', 100), m('e', 300)],
       catalog: miniDeck,
       lives: 3,
       streak: 2,
@@ -204,6 +213,7 @@ describe('resolveGuess', () => {
       playerCount: 3,
       guess: 'lower',
       turnNonce: 0,
+      density: 'locker',
       pick: pickFirst,
     })
 
@@ -211,8 +221,8 @@ describe('resolveGuess', () => {
     expect(result.lives).toBe(2)
     expect(result.streak).toBe(2)
     expect(result.currentPlayerIndex).toBe(0)
-    expect(result.current.id).toBe('a')
-    expect(result.next.id).toBe('c')
+    expect(result.current.id).not.toBe('a')
+    expect(result.current.axis).not.toBe('weight')
     expect(result.gameStatus).toBe('playing')
   })
 
@@ -220,7 +230,7 @@ describe('resolveGuess', () => {
     const result = resolveGuess({
       current: kg('a', 10),
       next: kg('b', 20),
-      remaining: [kg('c', 30), m('d', 100), m('e', 200)],
+      remaining: [kg('c', 30), m('d', 100), m('e', 300)],
       catalog: miniDeck,
       lives: 1,
       streak: 9,
@@ -228,6 +238,7 @@ describe('resolveGuess', () => {
       playerCount: 3,
       guess: 'lower',
       turnNonce: 3,
+      density: 'locker',
       pick: pickFirst,
     })
 
@@ -241,7 +252,7 @@ describe('resolveGuess', () => {
     const result = resolveGuess({
       current: kg('a', 10),
       next: kg('c', 30),
-      remaining: [m('d', 100), m('e', 200)],
+      remaining: [m('d', 100), m('e', 300)],
       catalog: miniDeck,
       lives: 3,
       streak: 0,
@@ -249,6 +260,7 @@ describe('resolveGuess', () => {
       playerCount: 3,
       guess: 'higher',
       turnNonce: 1,
+      density: 'locker',
       pick: pickFirst,
     })
 

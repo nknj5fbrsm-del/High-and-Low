@@ -59,8 +59,9 @@ export function AppView({ game }: { game: GameSession }) {
         onJoin={() => void game.joinRoom(joinCode, name)}
         onStart={() => void game.startGame()}
         onVote={(mode) => void game.voteMode(mode)}
-        onSolo={(mode) => void game.startSolo(name, mode)}
+        onSolo={(mode, density) => void game.startSolo(name, mode, density)}
         onStartMode={(mode) => void game.startGame(mode)}
+        onSetDensity={(density) => void game.setDensity(density)}
         onLeave={game.leaveRoom}
       />
     )

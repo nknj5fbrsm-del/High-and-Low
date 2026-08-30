@@ -6,8 +6,8 @@ import { formatCardValue } from '../format.ts'
 
 const weightRef = ADULT_DECK.find((card) => card.id === 'mensch')!
 const weightNext = ADULT_DECK.find((card) => card.id === 'panda')!
-const yearRef = ADULT_DECK.find((card) => card.id === 'google')!
-const yearNext = ADULT_DECK.find((card) => card.id === 'iphone-jahr')!
+const yearRef = ADULT_DECK.find((card) => card.id === 'mozart')!
+const yearNext = ADULT_DECK.find((card) => card.id === 'beethoven')!
 
 const room: RoomState = {
   room_code: 'ABCD',
@@ -30,6 +30,7 @@ const room: RoomState = {
   max_players: 3,
   votes: {},
   selected_mode: 'adult',
+  selected_density: 'knackig',
 }
 
 describe('GameScreen', () => {

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { normalizeRoomCode, trimName } from '../format.ts'
 import { loadIdentity, saveIdentity } from '../lib/identity.ts'
 import { supabase } from '../lib/supabase.ts'
+import { normalizeDensity } from '../density.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
-import type { GameMode, Guess, Player, RoomState } from '../types.ts'
+import type { Density, GameMode, Guess, Player, RoomState } from '../types.ts'
 
 function asRoom(data: unknown): RoomState {
   const row = data as RoomState
@@ -18,6 +19,7 @@ function asRoom(data: unknown): RoomState {
     max_players: row.max_players ?? DEFAULT_PLAYERS,
     votes: row.votes ?? {},
     selected_mode: row.selected_mode === 'kids' ? 'kids' : 'adult',
+    selected_density: normalizeDensity(row.selected_density),
   }
 }
 
@@ -193,16 +195,29 @@ export function useRoom() {
   )
 
   const startSolo = useCallback(
-    async (name: string, mode: GameMode) => {
+    async (name: string, mode: GameMode, density: Density = 'knackig') => {
       const trimmed = trimName(name)
       setIdentity(saveIdentity({ name: trimmed }))
       await runRpc('start_solo', {
         p_player_id: playerId,
         p_name: trimmed,
         p_mode: mode,
+        p_density: normalizeDensity(density),
       })
     },
     [playerId, runRpc],
+  )
+
+  const setDensity = useCallback(
+    async (density: Density) => {
+      if (!room) return
+      await runRpc('set_density', {
+        p_room_code: room.room_code,
+        p_player_id: playerId,
+        p_density: normalizeDensity(density),
+      })
+    },
+    [playerId, room, runRpc],
   )
 
   const voteMode = useCallback(
@@ -253,6 +268,7 @@ export function useRoom() {
     joinRoom,
     startGame,
     startSolo,
+    setDensity,
     voteMode,
     submitGuess,
     restartGame,

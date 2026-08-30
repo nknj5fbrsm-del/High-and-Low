@@ -22,6 +22,7 @@ const twoPlayers: RoomState = {
   max_players: 3,
   votes: {},
   selected_mode: 'adult',
+  selected_density: 'knackig',
 }
 
 const fullRoom: RoomState = {
@@ -43,6 +44,7 @@ const lobbyProps = {
     onVote: noop,
     onSolo: noop,
     onStartMode: noop,
+    onSetDensity: noop,
     onLeave: noop,
 }
 
@@ -154,7 +156,7 @@ describe('LobbyScreen', () => {
     expect(onLeave).toHaveBeenCalledOnce()
   })
 
-  it('startet Solo ohne Lobby direkt über Erwachsene/Kinder', () => {
+  it('startet Solo ohne Lobby mit Modus und Dichte', () => {
     const onSolo = vi.fn()
     render(
       <LobbyScreen
@@ -166,9 +168,44 @@ describe('LobbyScreen', () => {
       />,
     )
     expect(screen.getByText('Allein spielen')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Locker' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Knackig' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Haarscharf' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '1' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Haarscharf' }))
     fireEvent.click(screen.getByRole('button', { name: 'Erwachsene' }))
-    expect(onSolo).toHaveBeenCalledWith('adult')
+    expect(onSolo).toHaveBeenCalledWith('adult', 'haarscharf')
+  })
+
+  it('lässt den Host die Dichte vor dem Start festlegen', () => {
+    const onSetDensity = vi.fn()
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Max"
+        room={fullRoom}
+        playerId="p1"
+        onSetDensity={onSetDensity}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Locker' }))
+    expect(onSetDensity).toHaveBeenCalledWith('locker')
+  })
+
+  it('zeigt Gästen die gewählte Dichte ohne Easy/Medium/Hard', () => {
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Nils"
+        room={{ ...fullRoom, selected_density: 'haarscharf' }}
+        playerId="p2"
+      />,
+    )
+    expect(screen.getAllByText('Haarscharf').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText('Easy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Medium')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Locker' })).not.toBeInTheDocument()
   })
 
   it('übergibt die gewählte Spielerzahl beim Erstellen', () => {

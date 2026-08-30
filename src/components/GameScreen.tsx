@@ -40,7 +40,9 @@ export function GameScreen({
   const labels = reference ? guessLabels(reference.axis) : guessLabels('height')
   const maxLives = livesForMode(room.selected_mode)
   const remark =
-    revealing && reference && mystery ? dealerLine(reference.value, mystery.value) : null
+    revealing && reference && mystery
+      ? dealerLine(reference.value, mystery.value, reference.axis)
+      : null
 
   if (!reference || !mystery) {
     return (
