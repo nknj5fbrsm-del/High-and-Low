@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { modeLabel, voteCounts } from '../axis.ts'
+import { DENSITIES } from '../density.ts'
+import { densityLabel, modeLabel, voteCounts } from '../axis.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
-import type { GameMode, Player, RoomState } from '../types.ts'
+import type { Density, GameMode, Player, RoomState } from '../types.ts'
 import { normalizeRoomCode } from '../format.ts'
 import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 
@@ -26,6 +27,7 @@ export function LobbyScreen({
   onVote,
   onSolo,
   onStartMode,
+  onSetDensity,
   onLeave,
 }: {
   name: string
@@ -41,12 +43,14 @@ export function LobbyScreen({
   onJoin: () => void
   onStart: () => void
   onVote: (mode: GameMode) => void
-  onSolo: (mode: GameMode) => void
+  onSolo: (mode: GameMode, density: Density) => void
   onStartMode: (mode: GameMode) => void
+  onSetDensity: (density: Density) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const [maxPlayers, setMaxPlayers] = useState(DEFAULT_PLAYERS)
+  const [soloDensity, setSoloDensity] = useState<Density>('knackig')
   const isHost = room?.host_id === playerId
   const players: Player[] = room?.players ?? []
   const seats = room?.max_players ?? DEFAULT_PLAYERS
@@ -106,12 +110,13 @@ export function LobbyScreen({
         {!inRoom && (
           <section>
             <p className="text-sm font-medium text-cream">Allein spielen</p>
-            <p className="mt-1 text-sm text-khaki">Kein Warten. Karte liegt, nächste bleibt zu.</p>
+            <p className="mt-1 text-sm text-khaki">Kein Warten. Dichte, Stapel, Karten liegen.</p>
+            <DensityTabs value={soloDensity} onChange={setSoloDensity} disabled={busy} />
             <div className="mt-3 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 disabled={busy || name.trim().length === 0}
-                onClick={() => onSolo('adult')}
+                onClick={() => onSolo('adult', soloDensity)}
                 className="tab-btn tab-btn-burgundy"
               >
                 Erwachsene
@@ -119,7 +124,7 @@ export function LobbyScreen({
               <button
                 type="button"
                 disabled={busy || name.trim().length === 0}
-                onClick={() => onSolo('kids')}
+                onClick={() => onSolo('kids', soloDensity)}
                 className="tab-btn tab-btn-khaki"
               >
                 Kinder
@@ -261,6 +266,28 @@ export function LobbyScreen({
 
         {inRoom && !soloRoom && (
           <section>
+            <p className="text-sm font-medium text-cream">Wie dicht?</p>
+            <p className="mt-1 text-sm text-khaki">
+              {isHost
+                ? 'Host legt fest, bevor es losgeht.'
+                : `Am Tisch: ${densityLabel(room?.selected_density ?? 'knackig')}.`}
+            </p>
+            {isHost ? (
+              <DensityTabs
+                value={room?.selected_density ?? 'knackig'}
+                onChange={onSetDensity}
+                disabled={busy}
+              />
+            ) : (
+              <p className="mt-3 font-serif text-lg text-khaki">
+                {densityLabel(room?.selected_density ?? 'knackig')}
+              </p>
+            )}
+          </section>
+        )}
+
+        {inRoom && !soloRoom && (
+          <section>
             <p className="text-sm font-medium text-cream">Welcher Stapel?</p>
             <p className="mt-1 text-sm text-khaki">
               Mehrheit gewinnt. Gleichstand entscheidet die Stimme des Hosts.
@@ -272,7 +299,7 @@ export function LobbyScreen({
                 count={counts.adult}
                 disabled={busy}
                 onVote={onVote}
-                detail="3 Leben, enge Fakten"
+                detail="3 Leben, prüfbare Fakten"
               />
               <ModeVoteButton
                 mode="kids"
@@ -308,6 +335,36 @@ export function LobbyScreen({
 
         {canLeave && <LeaveRoomButton onLeave={onLeave} />}
       </form>
+    </div>
+  )
+}
+
+function DensityTabs({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Density
+  onChange: (density: Density) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="mt-3 grid grid-cols-3 gap-2">
+      {DENSITIES.map((density) => {
+        const selected = value === density
+        return (
+          <button
+            key={density}
+            type="button"
+            aria-pressed={selected}
+            disabled={disabled}
+            onClick={() => onChange(density)}
+            className={`tab-btn ${selected ? 'tab-btn-burgundy' : 'tab-btn-ghost'}`}
+          >
+            {densityLabel(density)}
+          </button>
+        )
+      })}
     </div>
   )
 }

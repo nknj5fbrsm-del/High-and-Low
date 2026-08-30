@@ -1,5 +1,7 @@
+import { listValidPairs } from './density.ts'
 import type {
   DealResult,
+  Density,
   FactCard,
   GameStatus,
   Guess,
@@ -36,12 +38,12 @@ export function withoutIds(cards: FactCard[], ids: string[]): FactCard[] {
   return cards.filter((card) => !skip.has(card.id))
 }
 
-export function canFormOpeningPair(cards: FactCard[]): boolean {
-  const counts = new Map<string, number>()
-  for (const card of cards) {
-    counts.set(card.axis, (counts.get(card.axis) ?? 0) + 1)
-  }
-  return [...counts.values()].some((count) => count >= 2)
+export function canFormOpeningPair(
+  cards: FactCard[],
+  density: Density = 'knackig',
+  excludeAxis: string | null = null,
+): boolean {
+  return listValidPairs(cards, density, excludeAxis).length > 0
 }
 
 export function usedIdsFrom(catalog: FactCard[], remaining: FactCard[]): string[] {
@@ -62,59 +64,55 @@ export function isMyTurn(
   return room.players[room.current_player_index]?.id === playerId
 }
 
-export function dealOpeningPair(
+function pickPair(
+  pairs: [FactCard, FactCard][],
+  pick: CardPick,
+): [FactCard, FactCard] | null {
+  if (pairs.length === 0) return null
+  const anchors = pairs.map(([left]) => left)
+  const chosen = pick(anchors)
+  const mates = pairs
+    .filter(([left, right]) => left.id === chosen.id || right.id === chosen.id)
+    .map(([left, right]) => (left.id === chosen.id ? right : left))
+  const other = pick(mates)
+  const current = pick([chosen, other])
+  const next = current.id === chosen.id ? other : chosen
+  return [current, next]
+}
+
+export function dealFreshPair(
   pool: FactCard[],
+  catalog: FactCard[],
+  density: Density,
+  excludeAxis: string | null = null,
   pick: CardPick = pickRandom,
 ): DealResult | null {
-  const axes = [...new Set(pool.map((card) => card.axis))]
-  const viable = axes.filter((axis) => cardsOfAxis(pool, axis).length >= 2)
-  if (viable.length === 0) return null
+  const fromPool = pickPair(listValidPairs(pool, density, excludeAxis), pick)
+  if (fromPool) {
+    const [current, next] = fromPool
+    return {
+      current,
+      next,
+      remaining: withoutIds(pool, [current.id, next.id]),
+    }
+  }
 
-  const axisCards = viable.map((axis) => cardsOfAxis(pool, axis)[0])
-  const chosenAxis = pick(axisCards).axis
-  const group = cardsOfAxis(pool, chosenAxis)
-  const current = pick(group)
-  const next = pick(group.filter((card) => card.id !== current.id))
+  const recycled = pickPair(listValidPairs(catalog, density, excludeAxis), pick)
+  if (!recycled) return null
+  const [current, next] = recycled
   return {
     current,
     next,
-    remaining: withoutIds(pool, [current.id, next.id]),
+    remaining: withoutIds(catalog, [current.id, next.id]),
   }
 }
 
-export function dealAfterReference(
-  remaining: FactCard[],
-  catalog: FactCard[],
-  reference: FactCard,
+export function dealOpeningPair(
+  pool: FactCard[],
+  density: Density = 'knackig',
   pick: CardPick = pickRandom,
-): DealResult {
-  const sameAxis = cardsOfAxis(
-    remaining.filter((card) => card.id !== reference.id),
-    reference.axis,
-  )
-
-  if (sameAxis.length > 0) {
-    const next = pick(sameAxis)
-    return {
-      current: reference,
-      next,
-      remaining: withoutIds(remaining, [next.id]),
-    }
-  }
-
-  let freshPool = remaining.filter((card) => card.id !== reference.id)
-  if (!canFormOpeningPair(freshPool)) {
-    freshPool = withoutIds(catalog, [reference.id])
-    if (!canFormOpeningPair(freshPool)) {
-      freshPool = catalog
-    }
-  }
-
-  const opening = dealOpeningPair(freshPool, pick)
-  if (!opening) {
-    throw new Error('Kein Kartenpaar mehr möglich')
-  }
-  return opening
+): DealResult | null {
+  return dealFreshPair(pool, pool, density, null, pick)
 }
 
 export function resolveGuess(input: {
@@ -128,6 +126,7 @@ export function resolveGuess(input: {
   playerCount: number
   guess: Guess
   turnNonce: number
+  density: Density
   pick?: CardPick
 }): {
   correct: boolean
@@ -169,8 +168,16 @@ export function resolveGuess(input: {
     }
   }
 
-  const reference = correct ? input.next : input.current
-  const deal = dealAfterReference(input.remaining, input.catalog, reference, pick)
+  const deal = dealFreshPair(
+    input.remaining,
+    input.catalog,
+    input.density,
+    input.current.axis,
+    pick,
+  )
+  if (!deal) {
+    throw new Error('Kein Kartenpaar mehr möglich')
+  }
 
   return {
     correct,

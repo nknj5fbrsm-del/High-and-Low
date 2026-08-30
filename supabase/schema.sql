@@ -2,9 +2,11 @@
 -- Komplett im SQL-Editor einfügen und ausführen (idempotent, überschreibt den Kartenstapel).
 
 DROP FUNCTION IF EXISTS vote_mode(text, text, text);
+DROP FUNCTION IF EXISTS set_density(text, text, text);
 DROP FUNCTION IF EXISTS submit_guess(text, text, text, integer);
 DROP FUNCTION IF EXISTS restart_game(text, text);
 DROP FUNCTION IF EXISTS start_solo(text, text, text);
+DROP FUNCTION IF EXISTS start_solo(text, text, text, text);
 DROP FUNCTION IF EXISTS start_game(text, text);
 DROP FUNCTION IF EXISTS start_game(text, text, text);
 DROP FUNCTION IF EXISTS join_room(text, text, text);
@@ -12,7 +14,11 @@ DROP FUNCTION IF EXISTS create_room(text, text);
 DROP FUNCTION IF EXISTS create_room(text, text, integer);
 DROP FUNCTION IF EXISTS winning_mode(jsonb, text);
 DROP FUNCTION IF EXISTS deal_after_reference(jsonb, jsonb, jsonb);
+DROP FUNCTION IF EXISTS deal_fresh_pair(jsonb, jsonb, text, text);
 DROP FUNCTION IF EXISTS deal_opening_pair(jsonb);
+DROP FUNCTION IF EXISTS deal_opening_pair(jsonb, text);
+DROP FUNCTION IF EXISTS pair_fits_density(jsonb, jsonb, text);
+DROP FUNCTION IF EXISTS is_subset_pair(jsonb, jsonb);
 DROP FUNCTION IF EXISTS can_form_opening_pair(jsonb);
 DROP FUNCTION IF EXISTS used_card_ids(jsonb, jsonb);
 DROP FUNCTION IF EXISTS remove_card_id(jsonb, text);
@@ -70,17 +76,23 @@ ALTER TABLE rooms ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAU
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS max_players integer NOT NULL DEFAULT 3;
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS votes jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_mode text NOT NULL DEFAULT 'adult';
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_density text NOT NULL DEFAULT 'knackig';
 
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_max_players_range;
 ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_range CHECK (max_players BETWEEN 1 AND 6);
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_mode_ok;
 ALTER TABLE rooms ADD CONSTRAINT rooms_selected_mode_ok CHECK (selected_mode IN ('adult', 'kids'));
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_density_ok;
+ALTER TABLE rooms ADD CONSTRAINT rooms_selected_density_ok CHECK (selected_density IN ('locker', 'knackig', 'haarscharf'));
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_votes_object;
 ALTER TABLE rooms ADD CONSTRAINT rooms_votes_object CHECK (jsonb_typeof(votes) = 'object');
 
 TRUNCATE fact_cards;
 
 INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
+  ('berlin', 'Berlin (Stadt)', 3.88, 'Mio.', 'population', 'adult'),
+  ('madrid-stadt', 'Madrid (Stadt)', 3.33, 'Mio.', 'population', 'adult'),
+  ('rom-stadt', 'Rom (Stadt)', 2.76, 'Mio.', 'population', 'adult'),
   ('wien', 'Wien (Stadt)', 2.04, 'Mio.', 'population', 'adult'),
   ('hamburg', 'Hamburg (Stadt)', 1.86, 'Mio.', 'population', 'adult'),
   ('warschau', 'Warschau (Stadt)', 1.86, 'Mio.', 'population', 'adult'),
@@ -89,91 +101,120 @@ INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
   ('muenchen', 'München (Stadt)', 1.51, 'Mio.', 'population', 'adult'),
   ('prag', 'Prag (Stadt)', 1.38, 'Mio.', 'population', 'adult'),
   ('mailand', 'Mailand (Stadt)', 1.37, 'Mio.', 'population', 'adult'),
+  ('koeln-stadt', 'Köln (Stadt)', 1.09, 'Mio.', 'population', 'adult'),
+  ('stockholm-stadt', 'Stockholm (Stadt)', 0.99, 'Mio.', 'population', 'adult'),
+  ('griechenland', 'Griechenland', 131957, 'km²', 'area', 'adult'),
+  ('nicaragua', 'Nicaragua', 130373, 'km²', 'area', 'adult'),
+  ('portugal', 'Portugal', 92212, 'km²', 'area', 'adult'),
+  ('jordanien', 'Jordanien', 89342, 'km²', 'area', 'adult'),
+  ('aserbaidschan', 'Aserbaidschan', 86600, 'km²', 'area', 'adult'),
+  ('oesterreich', 'Österreich', 83879, 'km²', 'area', 'adult'),
+  ('vae', 'Vereinigte Arabische Emirate', 83600, 'km²', 'area', 'adult'),
   ('tschechien', 'Tschechien', 78871, 'km²', 'area', 'adult'),
   ('panama', 'Panama', 75417, 'km²', 'area', 'adult'),
-  ('vae', 'Vereinigte Arabische Emirate', 83600, 'km²', 'area', 'adult'),
-  ('oesterreich', 'Österreich', 83879, 'km²', 'area', 'adult'),
   ('irland', 'Irland (Staat)', 70273, 'km²', 'area', 'adult'),
-  ('aserbaidschan', 'Aserbaidschan', 86600, 'km²', 'area', 'adult'),
-  ('jordanien', 'Jordanien', 89342, 'km²', 'area', 'adult'),
-  ('portugal', 'Portugal', 92212, 'km²', 'area', 'adult'),
-  ('shard', 'The Shard, London', 310, 'm', 'height', 'adult'),
-  ('chrysler', 'Chrysler Building', 319, 'm', 'height', 'adult'),
-  ('eiffelturm-hoehe', 'Eiffelturm', 330, 'm', 'height', 'adult'),
-  ('bank-of-china', 'Bank of China Tower, Hongkong', 367, 'm', 'height', 'adult'),
-  ('fernsehturm', 'Berliner Fernsehturm', 368, 'm', 'height', 'adult'),
-  ('two-ifc', 'Two IFC, Hongkong', 415, 'm', 'height', 'adult'),
-  ('jin-mao', 'Jin-Mao-Turm, Shanghai', 421, 'm', 'height', 'adult'),
+  ('daenemark', 'Dänemark', 42933, 'km²', 'area', 'adult'),
+  ('niederlande', 'Niederlande', 41543, 'km²', 'area', 'adult'),
+  ('schweiz', 'Schweiz', 41285, 'km²', 'area', 'adult'),
+  ('belgien', 'Belgien', 30689, 'km²', 'area', 'adult'),
   ('empire-state', 'Empire State Building (mit Antenne)', 443, 'm', 'height', 'adult'),
-  ('hyaene', 'Tüpfelhyäne', 70, 'kg', 'weight', 'adult'),
-  ('mensch', 'Durchschnittsmensch (DE)', 77, 'kg', 'weight', 'adult'),
+  ('jin-mao', 'Jin-Mao-Turm, Shanghai', 421, 'm', 'height', 'adult'),
+  ('two-ifc', 'Two IFC, Hongkong', 415, 'm', 'height', 'adult'),
+  ('fernsehturm', 'Berliner Fernsehturm', 368, 'm', 'height', 'adult'),
+  ('bank-of-china', 'Bank of China Tower, Hongkong', 367, 'm', 'height', 'adult'),
+  ('eiffelturm-hoehe', 'Eiffelturm', 330, 'm', 'height', 'adult'),
+  ('chrysler', 'Chrysler Building', 319, 'm', 'height', 'adult'),
+  ('shard', 'The Shard, London', 310, 'm', 'height', 'adult'),
+  ('commerzbank', 'Commerzbank-Tower', 259, 'm', 'height', 'adult'),
+  ('washington-monument', 'Washington Monument', 169, 'm', 'height', 'adult'),
+  ('koelner-dom', 'Kölner Dom', 157, 'm', 'height', 'adult'),
+  ('tiger-m', 'Tiger, Männchen', 220, 'kg', 'weight', 'adult'),
+  ('loewe-m', 'Löwe, Männchen', 190, 'kg', 'weight', 'adult'),
+  ('schwarzbaer', 'Amerikanischer Schwarzbär', 135, 'kg', 'weight', 'adult'),
+  ('rentier', 'Rentier', 120, 'kg', 'weight', 'adult'),
+  ('panda', 'Großer Panda', 100, 'kg', 'weight', 'adult'),
+  ('wildschwein', 'Mitteleuropäisches Wildschwein', 90, 'kg', 'weight', 'adult'),
+  ('orang-utan', 'Orang-Utan, Männchen', 85, 'kg', 'weight', 'adult'),
+  ('kaenguru', 'Rotes Riesenkänguru', 85, 'kg', 'weight', 'adult'),
   ('jaguar', 'Jaguar', 80, 'kg', 'weight', 'adult'),
   ('warzenschwein', 'Warzenschwein', 80, 'kg', 'weight', 'adult'),
-  ('kaenguru', 'Rotes Riesenkänguru', 85, 'kg', 'weight', 'adult'),
-  ('orang-utan', 'Orang-Utan, Männchen', 85, 'kg', 'weight', 'adult'),
-  ('wildschwein', 'Mitteleuropäisches Wildschwein', 90, 'kg', 'weight', 'adult'),
-  ('panda', 'Großer Panda', 100, 'kg', 'weight', 'adult'),
-  ('rentier', 'Rentier', 120, 'kg', 'weight', 'adult'),
-  ('schwarzbaer', 'Amerikanischer Schwarzbär', 135, 'kg', 'weight', 'adult'),
-  ('steam-deck', 'Steam Deck OLED', 549, '€', 'price', 'adult'),
-  ('airpods-max', 'AirPods Max', 599, '€', 'price', 'adult'),
-  ('ps5', 'PlayStation 5 mit Laufwerk (UVP)', 650, '€', 'price', 'adult'),
-  ('ipad-air', 'iPad Air 11″', 699, '€', 'price', 'adult'),
-  ('dji-mini', 'DJI Mini 4 Pro', 759, '€', 'price', 'adult'),
-  ('pixel-9', 'Google Pixel 9', 799, '€', 'price', 'adult'),
-  ('watch-ultra', 'Apple Watch Ultra 2', 899, '€', 'price', 'adult'),
-  ('iphone-16', 'iPhone 16', 999, '€', 'price', 'adult'),
-  ('google', 'Gründung von Google', 1998, 'Jahr', 'year', 'adult'),
-  ('euro-buchgeld', 'Euro als Buchgeld', 1999, 'Jahr', 'year', 'adult'),
-  ('wikipedia', 'Start von Wikipedia', 2001, 'Jahr', 'year', 'adult'),
-  ('euro-bargeld', 'Euro-Bargeld', 2002, 'Jahr', 'year', 'adult'),
-  ('facebook', 'Start von Facebook', 2004, 'Jahr', 'year', 'adult'),
-  ('youtube', 'Start von YouTube', 2005, 'Jahr', 'year', 'adult'),
-  ('twitter', 'Start von Twitter', 2006, 'Jahr', 'year', 'adult'),
-  ('iphone-jahr', 'Erstes iPhone', 2007, 'Jahr', 'year', 'adult'),
-  ('hamburg-koeln', 'Hamburg–Köln (Straße)', 430, 'km', 'distance', 'adult'),
-  ('a2', 'Autobahn A2', 486, 'km', 'distance', 'adult'),
-  ('a8', 'Autobahn A8', 505, 'km', 'distance', 'adult'),
-  ('a9', 'Autobahn A9', 529, 'km', 'distance', 'adult'),
-  ('berlin-muenchen', 'Berlin–München (Straße)', 585, 'km', 'distance', 'adult'),
-  ('berlin-wien', 'Berlin–Wien (Straße)', 680, 'km', 'distance', 'adult'),
-  ('a1', 'Autobahn A1', 732, 'km', 'distance', 'adult'),
+  ('mensch', 'Durchschnittsmensch (DE)', 77, 'kg', 'weight', 'adult'),
+  ('hyaene', 'Tüpfelhyäne', 70, 'kg', 'weight', 'adult'),
+  ('schimpanse', 'Schimpanse, Männchen', 45, 'kg', 'weight', 'adult'),
+  ('wolf', 'Europäischer Wolf', 40, 'kg', 'weight', 'adult'),
+  ('leonardo', 'Leonardo da Vinci', 1452, 'Jahr', 'year', 'adult'),
+  ('duerer', 'Albrecht Dürer', 1471, 'Jahr', 'year', 'adult'),
+  ('michelangelo', 'Michelangelo', 1475, 'Jahr', 'year', 'adult'),
+  ('rembrandt', 'Rembrandt', 1606, 'Jahr', 'year', 'adult'),
+  ('vivaldi', 'Antonio Vivaldi', 1678, 'Jahr', 'year', 'adult'),
+  ('bach', 'Johann Sebastian Bach', 1685, 'Jahr', 'year', 'adult'),
+  ('haydn', 'Joseph Haydn', 1732, 'Jahr', 'year', 'adult'),
+  ('mozart', 'Wolfgang Amadeus Mozart', 1756, 'Jahr', 'year', 'adult'),
+  ('beethoven', 'Ludwig van Beethoven', 1770, 'Jahr', 'year', 'adult'),
+  ('chopin', 'Frédéric Chopin', 1810, 'Jahr', 'year', 'adult'),
+  ('brahms', 'Johannes Brahms', 1833, 'Jahr', 'year', 'adult'),
+  ('vangogh', 'Vincent van Gogh', 1853, 'Jahr', 'year', 'adult'),
+  ('debussy', 'Claude Debussy', 1862, 'Jahr', 'year', 'adult'),
+  ('picasso', 'Pablo Picasso', 1881, 'Jahr', 'year', 'adult'),
   ('hamburg-muenchen', 'Hamburg–München (Straße)', 790, 'km', 'distance', 'adult'),
-  ('eurostar', 'Eurostar, Höchstgeschwindigkeit', 300, 'km/h', 'speed', 'adult'),
-  ('ave', 'AVE, Höchstgeschwindigkeit', 310, 'km/h', 'speed', 'adult'),
-  ('tgv', 'TGV, Höchstgeschwindigkeit', 320, 'km/h', 'speed', 'adult'),
+  ('a1', 'Autobahn A1', 732, 'km', 'distance', 'adult'),
+  ('berlin-wien', 'Berlin–Wien (Straße)', 680, 'km', 'distance', 'adult'),
+  ('berlin-muenchen', 'Berlin–München (Straße)', 585, 'km', 'distance', 'adult'),
+  ('a9', 'Autobahn A9', 529, 'km', 'distance', 'adult'),
+  ('a8', 'Autobahn A8', 505, 'km', 'distance', 'adult'),
+  ('a2', 'Autobahn A2', 486, 'km', 'distance', 'adult'),
+  ('hamburg-koeln', 'Hamburg–Köln (Straße)', 430, 'km', 'distance', 'adult'),
+  ('berlin-hamburg', 'Berlin–Hamburg (Straße)', 289, 'km', 'distance', 'adult'),
+  ('koeln-amsterdam', 'Köln–Amsterdam (Straße)', 280, 'km', 'distance', 'adult'),
+  ('muenchen-stuttgart', 'München–Stuttgart (Straße)', 220, 'km', 'distance', 'adult'),
+  ('flug-cruise', 'Verkehrsflugzeug, Reisegeschwindigkeit', 900, 'km/h', 'speed', 'adult'),
+  ('chiron', 'Bugatti Chiron, Spitze', 420, 'km/h', 'speed', 'adult'),
+  ('f1', 'Formel-1-Auto, Spitze', 370, 'km/h', 'speed', 'adult'),
+  ('velaro', 'Velaro, Höchstgeschwindigkeit', 350, 'km/h', 'speed', 'adult'),
   ('ice', 'ICE 3, Höchstgeschwindigkeit', 330, 'km/h', 'speed', 'adult'),
   ('wanderfalke', 'Sturzflug Wanderfalke', 320, 'km/h', 'speed', 'adult'),
-  ('velaro', 'Velaro, Höchstgeschwindigkeit', 350, 'km/h', 'speed', 'adult'),
-  ('f1', 'Formel-1-Auto, Spitze', 370, 'km/h', 'speed', 'adult'),
-  ('chiron', 'Bugatti Chiron, Spitze', 420, 'km/h', 'speed', 'adult'),
-  ('helsinki', 'Helsinki, Juli-Mittel', 21, '°C', 'temp', 'adult'),
-  ('stockholm', 'Stockholm, Juli-Mittel', 22, '°C', 'temp', 'adult'),
-  ('london', 'London, Juli-Mittel', 23, '°C', 'temp', 'adult'),
-  ('berlin-temp', 'Berlin, Juli-Mittel', 24, '°C', 'temp', 'adult'),
-  ('paris', 'Paris, Juli-Mittel', 25, '°C', 'temp', 'adult'),
-  ('mailand-temp', 'Mailand, Juli-Mittel', 29, '°C', 'temp', 'adult'),
-  ('rom', 'Rom, Juli-Mittel', 30, '°C', 'temp', 'adult'),
+  ('tgv', 'TGV, Höchstgeschwindigkeit', 320, 'km/h', 'speed', 'adult'),
+  ('ave', 'AVE, Höchstgeschwindigkeit', 310, 'km/h', 'speed', 'adult'),
+  ('eurostar', 'Eurostar, Höchstgeschwindigkeit', 300, 'km/h', 'speed', 'adult'),
+  ('regionalzug', 'Regionalzug, Spitze', 160, 'km/h', 'speed', 'adult'),
+  ('autobahn-tempo', 'Pkw auf Autobahn, typische Spitze', 130, 'km/h', 'speed', 'adult'),
+  ('athen', 'Athen, Juli-Mittel', 34, '°C', 'temp', 'adult'),
   ('madrid', 'Madrid, Juli-Mittel', 32, '°C', 'temp', 'adult'),
+  ('rom', 'Rom, Juli-Mittel', 30, '°C', 'temp', 'adult'),
+  ('mailand-temp', 'Mailand, Juli-Mittel', 29, '°C', 'temp', 'adult'),
+  ('paris', 'Paris, Juli-Mittel', 25, '°C', 'temp', 'adult'),
+  ('berlin-temp', 'Berlin, Juli-Mittel', 24, '°C', 'temp', 'adult'),
+  ('london', 'London, Juli-Mittel', 23, '°C', 'temp', 'adult'),
+  ('stockholm', 'Stockholm, Juli-Mittel', 22, '°C', 'temp', 'adult'),
+  ('helsinki', 'Helsinki, Juli-Mittel', 21, '°C', 'temp', 'adult'),
+  ('oslo', 'Oslo, Juli-Mittel', 17, '°C', 'temp', 'adult'),
+  ('reykjavik', 'Reykjavík, Juli-Mittel', 13, '°C', 'temp', 'adult'),
+  ('periodensystem', 'Elemente im Periodensystem', 118, 'Stück', 'count', 'adult'),
+  ('klavier', 'Tasten eines Klaviers', 88, 'Stück', 'count', 'adult'),
+  ('schach', 'Felder auf dem Schachbrett', 64, 'Stück', 'count', 'adult'),
+  ('afrika', 'Staaten in Afrika', 54, 'Stück', 'count', 'adult'),
+  ('spielkarten', 'Karten im französischen Blatt', 52, 'Stück', 'count', 'adult'),
+  ('us-staaten', 'US-Bundesstaaten', 50, 'Stück', 'count', 'adult'),
+  ('chromosomen', 'Chromosomen des Menschen', 46, 'Stück', 'count', 'adult'),
+  ('shakespeare', 'Shakespeare-Dramen', 39, 'Stück', 'count', 'adult'),
   ('nato', 'NATO-Mitglieder', 32, 'Stück', 'count', 'adult'),
   ('zaehne', 'Zähne eines Erwachsenen', 32, 'Stück', 'count', 'adult'),
-  ('shakespeare', 'Shakespeare-Dramen', 39, 'Stück', 'count', 'adult'),
-  ('chromosomen', 'Chromosomen des Menschen', 46, 'Stück', 'count', 'adult'),
-  ('us-staaten', 'US-Bundesstaaten', 50, 'Stück', 'count', 'adult'),
-  ('spielkarten', 'Karten im französischen Blatt', 52, 'Stück', 'count', 'adult'),
-  ('afrika', 'Staaten in Afrika', 54, 'Stück', 'count', 'adult'),
-  ('schach', 'Felder auf dem Schachbrett', 64, 'Stück', 'count', 'adult'),
+  ('eu', 'EU-Mitgliedstaaten', 27, 'Stück', 'count', 'adult'),
   ('k-de', 'Deutschland', 84, 'Mio.', 'population', 'kids'),
-  ('k-it', 'Italien', 59, 'Mio.', 'population', 'kids'),
   ('k-fr', 'Frankreich', 68, 'Mio.', 'population', 'kids'),
   ('k-uk', 'Vereinigtes Königreich', 67, 'Mio.', 'population', 'kids'),
+  ('k-it', 'Italien', 59, 'Mio.', 'population', 'kids'),
   ('k-es', 'Spanien', 48, 'Mio.', 'population', 'kids'),
   ('k-pl', 'Polen', 38, 'Mio.', 'population', 'kids'),
-  ('k-it-km2', 'Italien', 301340, 'km²', 'area', 'kids'),
-  ('k-pl-km2', 'Polen', 312679, 'km²', 'area', 'kids'),
-  ('k-de-km2', 'Deutschland', 357588, 'km²', 'area', 'kids'),
-  ('k-jp-km2', 'Japan', 377975, 'km²', 'area', 'kids'),
+  ('k-nl', 'Niederlande', 18, 'Mio.', 'population', 'kids'),
+  ('k-cz', 'Tschechien', 10.9, 'Mio.', 'population', 'kids'),
   ('k-fr-km2', 'Frankreich', 543940, 'km²', 'area', 'kids'),
+  ('k-es-km2', 'Spanien', 505990, 'km²', 'area', 'kids'),
+  ('k-jp-km2', 'Japan', 377975, 'km²', 'area', 'kids'),
+  ('k-de-km2', 'Deutschland', 357588, 'km²', 'area', 'kids'),
+  ('k-pl-km2', 'Polen', 312679, 'km²', 'area', 'kids'),
+  ('k-it-km2', 'Italien', 301340, 'km²', 'area', 'kids'),
+  ('k-uk-km2', 'Vereinigtes Königreich', 243610, 'km²', 'area', 'kids'),
   ('k-liberty', 'Freiheitsstatue', 93, 'm', 'height', 'kids'),
   ('k-dom', 'Kölner Dom', 157, 'm', 'height', 'kids'),
   ('k-eiffel', 'Eiffelturm', 330, 'm', 'height', 'kids'),
@@ -183,24 +224,26 @@ INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
   ('k-gorilla', 'Gorilla', 160, 'kg', 'weight', 'kids'),
   ('k-loewe', 'Löwe, Männchen', 190, 'kg', 'weight', 'kids'),
   ('k-tiger', 'Tiger, Männchen', 220, 'kg', 'weight', 'kids'),
-  ('k-helm', 'Fahrradhelm', 80, '€', 'price', 'kids'),
-  ('k-roller', 'Tretroller', 120, '€', 'price', 'kids'),
-  ('k-fahrrad-preis', 'Kinderfahrrad', 200, '€', 'price', 'kids'),
-  ('k-switch', 'Nintendo Switch', 300, '€', 'price', 'kids'),
-  ('k-lego', 'Lego-Noppenstein', 1958, 'Jahr', 'year', 'kids'),
-  ('k-mond', 'Mondlandung', 1969, 'Jahr', 'year', 'kids'),
-  ('k-pokemon', 'Pokémon (Game Boy)', 1996, 'Jahr', 'year', 'kids'),
-  ('k-hp', 'Harry Potter, Band 1', 1997, 'Jahr', 'year', 'kids'),
-  ('k-youtube', 'Start von YouTube', 2005, 'Jahr', 'year', 'kids'),
+  ('k-bach', 'Johann Sebastian Bach', 1685, 'Jahr', 'year', 'kids'),
+  ('k-vivaldi', 'Antonio Vivaldi', 1678, 'Jahr', 'year', 'kids'),
+  ('k-haydn', 'Joseph Haydn', 1732, 'Jahr', 'year', 'kids'),
+  ('k-mozart', 'Wolfgang Amadeus Mozart', 1756, 'Jahr', 'year', 'kids'),
+  ('k-beethoven', 'Ludwig van Beethoven', 1770, 'Jahr', 'year', 'kids'),
+  ('k-chopin', 'Frédéric Chopin', 1810, 'Jahr', 'year', 'kids'),
+  ('k-vangogh', 'Vincent van Gogh', 1853, 'Jahr', 'year', 'kids'),
+  ('k-picasso', 'Pablo Picasso', 1881, 'Jahr', 'year', 'kids'),
   ('k-bolt', 'Usain Bolt', 38, 'km/h', 'speed', 'kids'),
   ('k-pferd-kmh', 'Pferd im Galopp', 45, 'km/h', 'speed', 'kids'),
+  ('k-delphin', 'Delfin', 55, 'km/h', 'speed', 'kids'),
   ('k-windhund', 'Windhund', 70, 'km/h', 'speed', 'kids'),
   ('k-gepard', 'Gepard', 110, 'km/h', 'speed', 'kids'),
+  ('k-hh', 'Berlin–Hamburg', 289, 'km', 'distance', 'kids'),
   ('k-prag', 'Berlin–Prag', 350, 'km', 'distance', 'kids'),
   ('k-koeln', 'Hamburg–Köln', 430, 'km', 'distance', 'kids'),
   ('k-berlin-muc', 'Berlin–München', 585, 'km', 'distance', 'kids'),
   ('k-hh-muc', 'Hamburg–München', 790, 'km', 'distance', 'kids'),
   ('k-zimmer', 'Zimmertemperatur', 20, '°C', 'temp', 'kids'),
+  ('k-fruehling', 'Milder Frühlingstag', 22, '°C', 'temp', 'kids'),
   ('k-sommer', 'Sommertag', 28, '°C', 'temp', 'kids'),
   ('k-koerper', 'Körpertemperatur', 37, '°C', 'temp', 'kids'),
   ('k-wueste', 'Wüste am Tag', 45, '°C', 'temp', 'kids'),
@@ -303,68 +346,157 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION deal_opening_pair(p_pool jsonb)
-RETURNS deal_result
+CREATE OR REPLACE FUNCTION is_subset_pair(p_a jsonb, p_b jsonb)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM (VALUES
+      ('deutschland', 'berlin'),
+      ('k-de', 'berlin'),
+      ('k-de', 'hamburg'),
+      ('k-de', 'muenchen'),
+      ('k-de', 'koeln-stadt'),
+      ('oesterreich', 'wien'),
+      ('k-it', 'mailand'),
+      ('k-fr', 'paris'),
+      ('k-es', 'barcelona'),
+      ('k-es', 'madrid'),
+      ('k-uk', 'london'),
+      ('k-pl', 'warschau')
+    ) AS t(x, y)
+    WHERE (p_a->>'id' = x AND p_b->>'id' = y)
+       OR (p_a->>'id' = y AND p_b->>'id' = x)
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION pair_fits_density(p_a jsonb, p_b jsonb, p_density text)
+RETURNS boolean
 LANGUAGE plpgsql
-VOLATILE
+STABLE
 AS $$
 DECLARE
-  v_axis text;
-  v_current jsonb;
-  v_next jsonb;
-  v_rem jsonb;
+  v_axis text := coalesce(p_a->>'axis', p_a->>'unit');
+  va numeric := (p_a->>'value')::numeric;
+  vb numeric := (p_b->>'value')::numeric;
+  hi numeric;
+  lo numeric;
+  ratio numeric;
+  gap numeric;
 BEGIN
-  SELECT coalesce(elem->>'axis', elem->>'unit') INTO v_axis
-  FROM jsonb_array_elements(coalesce(p_pool, '[]'::jsonb)) elem
-  GROUP BY coalesce(elem->>'axis', elem->>'unit')
-  HAVING count(*) >= 2
-  ORDER BY random()
-  LIMIT 1;
-
-  IF v_axis IS NULL THEN
-    RETURN (NULL, NULL, coalesce(p_pool, '[]'::jsonb));
+  IF p_a->>'id' IS NULL OR p_b->>'id' IS NULL OR p_a->>'id' = p_b->>'id' THEN
+    RETURN false;
+  END IF;
+  IF coalesce(p_b->>'axis', p_b->>'unit') IS DISTINCT FROM v_axis THEN
+    RETURN false;
+  END IF;
+  IF is_subset_pair(p_a, p_b) THEN
+    RETURN false;
+  END IF;
+  IF va IS NULL OR vb IS NULL THEN
+    RETURN false;
   END IF;
 
-  v_current := pick_from_axis(p_pool, v_axis);
-  v_rem := remove_card_id(p_pool, v_current->>'id');
-  v_next := pick_from_axis(v_rem, v_axis);
-  v_rem := remove_card_id(v_rem, v_next->>'id');
+  IF v_axis = 'year' THEN
+    gap := abs(va - vb);
+    IF gap = 0 THEN
+      RETURN false;
+    END IF;
+    IF p_density = 'haarscharf' THEN
+      RETURN gap >= 5 AND gap < 25;
+    END IF;
+    IF p_density = 'knackig' THEN
+      RETURN gap >= 25 AND gap < 60;
+    END IF;
+    RETURN gap >= 60 AND gap <= 120;
+  END IF;
 
-  RETURN (v_current, v_next, v_rem);
+  hi := greatest(abs(va), abs(vb));
+  lo := least(abs(va), abs(vb));
+  IF lo = 0 THEN
+    RETURN false;
+  END IF;
+  ratio := hi / lo;
+  IF ratio > 4 THEN
+    RETURN false;
+  END IF;
+  IF p_density = 'haarscharf' THEN
+    RETURN ratio >= 1.05 AND ratio <= 1.3;
+  END IF;
+  IF p_density = 'knackig' THEN
+    RETURN ratio > 1.3 AND ratio <= 2;
+  END IF;
+  RETURN ratio > 2 AND ratio <= 4;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION deal_after_reference(
-  p_remaining jsonb,
+CREATE OR REPLACE FUNCTION deal_fresh_pair(
+  p_pool jsonb,
   p_catalog jsonb,
-  p_reference jsonb
+  p_density text,
+  p_exclude_axis text
 ) RETURNS deal_result
 LANGUAGE plpgsql
 VOLATILE
 AS $$
 DECLARE
-  v_next jsonb;
-  v_pool jsonb;
-  d deal_result;
-  v_ref_id text := p_reference->>'id';
-  v_axis text := coalesce(p_reference->>'axis', p_reference->>'unit');
+  v_a jsonb;
+  v_b jsonb;
+  v_source jsonb;
+  v_density text := coalesce(p_density, 'knackig');
 BEGIN
-  v_next := pick_from_axis(remove_card_id(p_remaining, v_ref_id), v_axis);
-  IF v_next IS NOT NULL THEN
-    RETURN (p_reference, v_next, remove_card_id(p_remaining, v_next->>'id'));
+  IF v_density NOT IN ('locker', 'knackig', 'haarscharf') THEN
+    v_density := 'knackig';
   END IF;
 
-  v_pool := remove_card_id(p_remaining, v_ref_id);
-  IF NOT can_form_opening_pair(v_pool) THEN
-    v_pool := remove_card_id(p_catalog, v_ref_id);
-    IF NOT can_form_opening_pair(v_pool) THEN
-      v_pool := p_catalog;
-    END IF;
+  v_source := coalesce(p_pool, '[]'::jsonb);
+  SELECT a, b INTO v_a, v_b
+  FROM jsonb_array_elements(v_source) a
+  JOIN jsonb_array_elements(v_source) b ON a->>'id' < b->>'id'
+  WHERE pair_fits_density(a, b, v_density)
+    AND (p_exclude_axis IS NULL OR coalesce(a->>'axis', a->>'unit') IS DISTINCT FROM p_exclude_axis)
+  ORDER BY random()
+  LIMIT 1;
+
+  IF v_a IS NULL THEN
+    v_source := coalesce(p_catalog, '[]'::jsonb);
+    SELECT a, b INTO v_a, v_b
+    FROM jsonb_array_elements(v_source) a
+    JOIN jsonb_array_elements(v_source) b ON a->>'id' < b->>'id'
+    WHERE pair_fits_density(a, b, v_density)
+      AND (p_exclude_axis IS NULL OR coalesce(a->>'axis', a->>'unit') IS DISTINCT FROM p_exclude_axis)
+    ORDER BY random()
+    LIMIT 1;
   END IF;
 
-  d := deal_opening_pair(v_pool);
-  RETURN d;
+  IF v_a IS NULL OR v_b IS NULL THEN
+    RETURN (NULL, NULL, coalesce(p_pool, '[]'::jsonb));
+  END IF;
+
+  IF random() < 0.5 THEN
+    RETURN (
+      v_a,
+      v_b,
+      remove_card_id(remove_card_id(v_source, v_a->>'id'), v_b->>'id')
+    );
+  END IF;
+
+  RETURN (
+    v_b,
+    v_a,
+    remove_card_id(remove_card_id(v_source, v_a->>'id'), v_b->>'id')
+  );
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION deal_opening_pair(p_pool jsonb, p_density text)
+RETURNS deal_result
+LANGUAGE sql
+VOLATILE
+AS $$
+  SELECT deal_fresh_pair(p_pool, p_pool, p_density, NULL);
 $$;
 
 CREATE OR REPLACE FUNCTION winning_mode(p_votes jsonb, p_host_id text)
@@ -466,7 +598,7 @@ AS $$
   SELECT create_room(p_player_id, p_name, 3);
 $$;
 
-CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text)
+CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text, p_density text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -481,6 +613,7 @@ DECLARE
   v_catalog jsonb;
   d deal_result;
   v_lives integer;
+  v_density text := coalesce(p_density, 'knackig');
 BEGIN
   IF p_player_id IS NULL OR length(p_player_id) < 8 OR length(p_player_id) > 80 THEN
     RAISE EXCEPTION 'Ungültige Spieler-ID.';
@@ -491,11 +624,14 @@ BEGIN
   IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
     RAISE EXCEPTION 'Bitte wähle Erwachsene oder Kinder.';
   END IF;
+  IF v_density NOT IN ('locker', 'knackig', 'haarscharf') THEN
+    RAISE EXCEPTION 'Bitte wähle Locker, Knackig oder Haarscharf.';
+  END IF;
 
   v_players := jsonb_build_array(jsonb_build_object('id', p_player_id, 'name', v_name));
   v_lives := CASE WHEN p_mode = 'kids' THEN 5 ELSE 3 END;
   v_catalog := load_catalog(p_mode);
-  d := deal_opening_pair(v_catalog);
+  d := deal_opening_pair(v_catalog, v_density);
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
   END IF;
@@ -509,11 +645,11 @@ BEGIN
     BEGIN
       INSERT INTO rooms (
         room_code, players, host_id, game_status, max_players, votes, selected_mode,
-        current_player_index, lives, streak, current_card, next_card, remaining_cards,
-        used_card_ids, last_result, turn_nonce
+        selected_density, current_player_index, lives, streak, current_card, next_card,
+        remaining_cards, used_card_ids, last_result, turn_nonce
       ) VALUES (
         v_code, v_players, p_player_id, 'playing', 1,
-        jsonb_build_object(p_player_id, p_mode), p_mode,
+        jsonb_build_object(p_player_id, p_mode), p_mode, v_density,
         0, v_lives, 0, d.current_card, d.next_card, d.remaining,
         used_card_ids(v_catalog, d.remaining), NULL, 1
       )
@@ -527,6 +663,15 @@ BEGIN
 
   RAISE EXCEPTION 'Raumcode konnte nicht erzeugt werden. Bitte nochmal versuchen.';
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT start_solo(p_player_id, p_name, p_mode, 'knackig');
 $$;
 
 CREATE OR REPLACE FUNCTION join_room(p_room_code text, p_player_id text, p_name text)
@@ -630,6 +775,40 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION set_density(p_room_code text, p_player_id text, p_density text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_code text := upper(trim(p_room_code));
+  r rooms%ROWTYPE;
+BEGIN
+  IF p_density NOT IN ('locker', 'knackig', 'haarscharf') THEN
+    RAISE EXCEPTION 'Bitte wähle Locker, Knackig oder Haarscharf.';
+  END IF;
+
+  SELECT * INTO r FROM rooms WHERE room_code = v_code FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Raum nicht gefunden.';
+  END IF;
+  IF r.game_status IS DISTINCT FROM 'lobby' THEN
+    RAISE EXCEPTION 'Dichte nur in der Lobby.';
+  END IF;
+  IF r.host_id IS DISTINCT FROM p_player_id THEN
+    RAISE EXCEPTION 'Nur der Host legt die Dichte fest.';
+  END IF;
+
+  UPDATE rooms
+  SET selected_density = p_density
+  WHERE room_code = v_code
+  RETURNING * INTO r;
+
+  RETURN to_jsonb(r);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text, p_mode text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -674,7 +853,7 @@ BEGIN
   END IF;
   v_lives := CASE WHEN v_mode = 'kids' THEN 5 ELSE 3 END;
   v_catalog := load_catalog(v_mode);
-  d := deal_opening_pair(v_catalog);
+  d := deal_opening_pair(v_catalog, coalesce(r.selected_density, 'knackig'));
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
   END IF;
@@ -769,10 +948,6 @@ BEGIN
     v_lives := r.lives;
     v_streak := r.streak + 1;
     v_status := 'playing';
-    d := deal_after_reference(r.remaining_cards, v_catalog, r.next_card);
-    v_current := d.current_card;
-    v_next := d.next_card;
-    v_remaining := d.remaining;
   ELSE
     v_lives := r.lives - 1;
     v_streak := r.streak;
@@ -784,11 +959,19 @@ BEGIN
       v_remaining := r.remaining_cards;
     ELSE
       v_status := 'playing';
-      d := deal_after_reference(r.remaining_cards, v_catalog, r.current_card);
-      v_current := d.current_card;
-      v_next := d.next_card;
-      v_remaining := d.remaining;
     END IF;
+  END IF;
+
+  IF v_status = 'playing' THEN
+    d := deal_fresh_pair(
+      r.remaining_cards,
+      v_catalog,
+      coalesce(r.selected_density, 'knackig'),
+      coalesce(r.current_card->>'axis', r.current_card->>'unit')
+    );
+    v_current := d.current_card;
+    v_next := d.next_card;
+    v_remaining := d.remaining;
   END IF;
 
   IF v_status = 'playing' AND (v_current IS NULL OR v_next IS NULL) THEN
@@ -865,7 +1048,7 @@ BEGIN
   v_mode := coalesce(r.selected_mode, 'adult');
   v_lives := CASE WHEN v_mode = 'kids' THEN 5 ELSE 3 END;
   v_catalog := load_catalog(v_mode);
-  d := deal_opening_pair(v_catalog);
+  d := deal_opening_pair(v_catalog, coalesce(r.selected_density, 'knackig'));
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
   END IF;
@@ -913,7 +1096,9 @@ GRANT EXECUTE ON FUNCTION create_room(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_room(text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION join_room(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION vote_mode(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION set_density(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_solo(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION start_solo(text, text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_game(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_game(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION submit_guess(text, text, text, integer) TO anon, authenticated;

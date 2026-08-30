@@ -1,6 +1,7 @@
 export type Guess = 'higher' | 'lower'
 export type GameStatus = 'lobby' | 'playing' | 'game_over'
 export type GameMode = 'adult' | 'kids'
+export type Density = 'locker' | 'knackig' | 'haarscharf'
 export type Axis =
   | 'weight'
   | 'price'
@@ -53,6 +54,7 @@ export interface RoomState {
   max_players: number
   votes: ModeVotes
   selected_mode: GameMode
+  selected_density: Density
 }
 
 export interface DealResult {
