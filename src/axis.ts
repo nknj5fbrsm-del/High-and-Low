@@ -12,6 +12,10 @@ export const AXIS_LABELS: Record<Axis, { higher: string; lower: string }> = {
   count: { higher: 'MEHR', lower: 'WENIGER' },
   population: { higher: 'MEHR', lower: 'WENIGER' },
   area: { higher: 'GRÖSSER', lower: 'KLEINER' },
+  duration: { higher: 'LÄNGER', lower: 'KÜRZER' },
+  depth: { higher: 'TIEFER', lower: 'FLACHER' },
+  power: { higher: 'STÄRKER', lower: 'SCHWÄCHER' },
+  calories: { higher: 'MEHR', lower: 'WENIGER' },
 }
 
 export const AXIS_CATEGORY: Record<Axis, string> = {
@@ -25,6 +29,10 @@ export const AXIS_CATEGORY: Record<Axis, string> = {
   count: 'ANZAHL',
   population: 'EINWOHNER',
   area: 'FLÄCHE',
+  duration: 'DAUER',
+  depth: 'TIEFE',
+  power: 'LEISTUNG',
+  calories: 'KALORIEN',
 }
 
 export function guessLabels(axis: Axis): { higher: string; lower: string } {

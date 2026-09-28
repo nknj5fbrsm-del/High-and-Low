@@ -69,6 +69,10 @@ describe('Deck', () => {
       'count',
       'population',
       'area',
+      'duration',
+      'depth',
+      'power',
+      'calories',
     ]
     for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
       expect(axes).toContain(card.axis)

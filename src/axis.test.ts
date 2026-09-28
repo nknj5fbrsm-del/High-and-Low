@@ -12,6 +12,10 @@ describe('guessLabels', () => {
     expect(guessLabels('height')).toEqual({ higher: 'HÖHER', lower: 'NIEDRIGER' })
     expect(guessLabels('population')).toEqual({ higher: 'MEHR', lower: 'WENIGER' })
     expect(guessLabels('area')).toEqual({ higher: 'GRÖSSER', lower: 'KLEINER' })
+    expect(guessLabels('duration')).toEqual({ higher: 'LÄNGER', lower: 'KÜRZER' })
+    expect(guessLabels('depth')).toEqual({ higher: 'TIEFER', lower: 'FLACHER' })
+    expect(guessLabels('power')).toEqual({ higher: 'STÄRKER', lower: 'SCHWÄCHER' })
+    expect(guessLabels('calories')).toEqual({ higher: 'MEHR', lower: 'WENIGER' })
   })
 })
 
@@ -21,6 +25,10 @@ describe('categoryLabel', () => {
     expect(categoryLabel('area')).toBe('FLÄCHE')
     expect(categoryLabel('weight')).toBe('GEWICHT')
     expect(categoryLabel('year')).toBe('GEBURTSJAHR')
+    expect(categoryLabel('duration')).toBe('DAUER')
+    expect(categoryLabel('depth')).toBe('TIEFE')
+    expect(categoryLabel('power')).toBe('LEISTUNG')
+    expect(categoryLabel('calories')).toBe('KALORIEN')
   })
 })
 

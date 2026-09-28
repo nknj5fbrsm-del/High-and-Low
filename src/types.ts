@@ -13,6 +13,10 @@ export type Axis =
   | 'count'
   | 'population'
   | 'area'
+  | 'duration'
+  | 'depth'
+  | 'power'
+  | 'calories'
 
 export interface FactCard {
   id: string
