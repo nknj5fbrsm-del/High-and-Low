@@ -1,5 +1,5 @@
-import type { Axis, Density, GameMode, ModeVotes } from './types.ts'
-import { KIDS_LIVES, MAX_LIVES } from './types.ts'
+import type { Axis, Density, PlayStyle } from './types.ts'
+import { MAX_LIVES } from './types.ts'
 
 export const AXIS_LABELS: Record<Axis, { higher: string; lower: string }> = {
   weight: { higher: 'SCHWERER', lower: 'LEICHTER' },
@@ -43,25 +43,12 @@ export function categoryLabel(axis: Axis): string {
   return AXIS_CATEGORY[axis] ?? 'FAKT'
 }
 
-export function livesForMode(mode: GameMode): number {
-  return mode === 'kids' ? KIDS_LIVES : MAX_LIVES
+export function livesForRoom(): number {
+  return MAX_LIVES
 }
 
-export function voteCounts(votes: ModeVotes): { adult: number; kids: number } {
-  let adult = 0
-  let kids = 0
-  for (const mode of Object.values(votes)) {
-    if (mode === 'kids') kids += 1
-    else if (mode === 'adult') adult += 1
-  }
-  return { adult, kids }
-}
-
-export function winningMode(votes: ModeVotes, hostId: string): GameMode {
-  const { adult, kids } = voteCounts(votes)
-  if (kids > adult) return 'kids'
-  if (adult > kids) return 'adult'
-  return votes[hostId] ?? 'adult'
+export function playStyleLabel(style: PlayStyle): string {
+  return style === 'versus' ? 'Gegeneinander' : 'Team'
 }
 
 export function streakTitle(streak: number): string {
@@ -71,10 +58,6 @@ export function streakTitle(streak: number): string {
   if (streak < 15) return 'Im Fluss'
   if (streak < 25) return 'Streak-Maschine'
   return 'Unaufhaltsam'
-}
-
-export function modeLabel(mode: GameMode): string {
-  return mode === 'kids' ? 'Kinder' : 'Erwachsene'
 }
 
 export function densityLabel(density: Density): string {

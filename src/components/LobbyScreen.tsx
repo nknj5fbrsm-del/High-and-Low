@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { DENSITIES } from '../density.ts'
-import { densityLabel, modeLabel, voteCounts } from '../axis.ts'
+import { densityLabel, playStyleLabel } from '../axis.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
-import type { Density, GameMode, Player, RoomState } from '../types.ts'
+import type { Density, PlayStyle, Player, RoomState } from '../types.ts'
 import { normalizeRoomCode } from '../format.ts'
 import { LeaveRoomButton } from './LeaveRoomButton.tsx'
 
@@ -24,10 +24,9 @@ export function LobbyScreen({
   onCreate,
   onJoin,
   onStart,
-  onVote,
   onSolo,
-  onStartMode,
   onSetDensity,
+  onSetPlayStyle,
   onLeave,
 }: {
   name: string
@@ -42,10 +41,9 @@ export function LobbyScreen({
   onCreate: (maxPlayers: number) => void
   onJoin: () => void
   onStart: () => void
-  onVote: (mode: GameMode) => void
-  onSolo: (mode: GameMode, density: Density) => void
-  onStartMode: (mode: GameMode) => void
+  onSolo: (density: Density) => void
   onSetDensity: (density: Density) => void
+  onSetPlayStyle: (style: PlayStyle) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -58,9 +56,7 @@ export function LobbyScreen({
   const full = Boolean(room) && players.length === seats
   const inRoom = Boolean(room)
   const canLeave = Boolean(room || storedRoomCode)
-  const votes = room?.votes ?? {}
-  const counts = voteCounts(votes)
-  const myVote = votes[playerId]
+  const playStyle = room?.play_style ?? 'team'
 
   async function copyCode() {
     if (!room) return
@@ -110,26 +106,16 @@ export function LobbyScreen({
         {!inRoom && (
           <section>
             <p className="text-sm font-medium text-cream">Allein spielen</p>
-            <p className="mt-1 text-sm text-khaki">Kein Warten. Dichte, Stapel, Karten liegen.</p>
+            <p className="mt-1 text-sm text-khaki">Kein Warten. Dichte wählen, Karten liegen.</p>
             <DensityTabs value={soloDensity} onChange={setSoloDensity} disabled={busy} />
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                disabled={busy || name.trim().length === 0}
-                onClick={() => onSolo('adult', soloDensity)}
-                className="tab-btn tab-btn-burgundy"
-              >
-                Erwachsene
-              </button>
-              <button
-                type="button"
-                disabled={busy || name.trim().length === 0}
-                onClick={() => onSolo('kids', soloDensity)}
-                className="tab-btn tab-btn-khaki"
-              >
-                Kinder
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={busy || name.trim().length === 0}
+              onClick={() => onSolo(soloDensity)}
+              className="tab-btn tab-btn-burgundy mt-3 w-full"
+            >
+              Solo starten
+            </button>
           </section>
         )}
 
@@ -211,31 +197,6 @@ export function LobbyScreen({
           </>
         ) : null}
 
-        {inRoom && room && soloRoom && (
-          <section>
-            <p className="font-serif text-xl text-cream">Welcher Stapel?</p>
-            <p className="mt-1 text-sm text-khaki">Ein Blatt. Keine leeren Stühle.</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStartMode('adult')}
-                className="tab-btn tab-btn-burgundy"
-              >
-                Erwachsene
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStartMode('kids')}
-                className="tab-btn tab-btn-khaki"
-              >
-                Kinder
-              </button>
-            </div>
-          </section>
-        )}
-
         {inRoom && room && !soloRoom && (
           <section>
             <p className="text-sm font-medium text-khaki">
@@ -288,28 +249,32 @@ export function LobbyScreen({
 
         {inRoom && !soloRoom && (
           <section>
-            <p className="text-sm font-medium text-cream">Welcher Stapel?</p>
+            <p className="text-sm font-medium text-cream">Spielmodus</p>
             <p className="mt-1 text-sm text-khaki">
-              Mehrheit gewinnt. Gleichstand entscheidet die Stimme des Hosts.
+              {isHost
+                ? 'Team teilt Leben und Serie. Gegeneinander: letzter mit Leben gewinnt.'
+                : `Am Tisch: ${playStyleLabel(playStyle)}.`}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <ModeVoteButton
-                mode="adult"
-                selected={myVote === 'adult'}
-                count={counts.adult}
-                disabled={busy}
-                onVote={onVote}
-                detail="3 Leben, prüfbare Fakten"
-              />
-              <ModeVoteButton
-                mode="kids"
-                selected={myVote === 'kids'}
-                count={counts.kids}
-                disabled={busy}
-                onVote={onVote}
-                detail="5 Leben, weiterer Stapel"
-              />
-            </div>
+            {isHost ? (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <PlayStyleButton
+                  style="team"
+                  selected={playStyle === 'team'}
+                  disabled={busy}
+                  onPick={onSetPlayStyle}
+                  detail="Gemeinsame Serie, 3 Leben"
+                />
+                <PlayStyleButton
+                  style="versus"
+                  selected={playStyle === 'versus'}
+                  disabled={busy}
+                  onPick={onSetPlayStyle}
+                  detail="3 Leben pro Kopf, letzter gewinnt"
+                />
+              </div>
+            ) : (
+              <p className="mt-3 font-serif text-lg text-khaki">{playStyleLabel(playStyle)}</p>
+            )}
           </section>
         )}
 
@@ -369,19 +334,17 @@ function DensityTabs({
   )
 }
 
-function ModeVoteButton({
-  mode,
+function PlayStyleButton({
+  style,
   selected,
-  count,
   disabled,
-  onVote,
+  onPick,
   detail,
 }: {
-  mode: GameMode
+  style: PlayStyle
   selected: boolean
-  count: number
   disabled: boolean
-  onVote: (mode: GameMode) => void
+  onPick: (style: PlayStyle) => void
   detail: string
 }) {
   return (
@@ -389,16 +352,13 @@ function ModeVoteButton({
       type="button"
       aria-pressed={selected}
       disabled={disabled}
-      onClick={() => onVote(mode)}
+      onClick={() => onPick(style)}
       className={`rounded px-3 py-4 text-left disabled:opacity-40 ${
         selected ? 'tab-btn-burgundy' : 'tab-btn-ghost'
       }`}
     >
-      <span className="block text-lg font-bold">{modeLabel(mode)}</span>
+      <span className="block text-lg font-bold">{playStyleLabel(style)}</span>
       <span className={`mt-1 block text-xs ${selected ? 'text-cream/80' : 'text-khaki'}`}>{detail}</span>
-      <span className="mt-2 block text-sm font-semibold tabular-nums">
-        {count} {count === 1 ? 'Stimme' : 'Stimmen'}
-      </span>
     </button>
   )
 }

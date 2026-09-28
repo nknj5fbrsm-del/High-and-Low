@@ -1,18 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ADULT_DECK, KIDS_DECK, toSqlInserts } from './deck.ts'
+import { ADULT_DECK, toSqlInserts } from './deck.ts'
 
 const schema = readFileSync(resolve(process.cwd(), 'supabase/schema.sql'), 'utf8')
 
 describe('schema.sql', () => {
-  it('enthält den aktuellen Stapel und keine Elektronik-Preise', () => {
+  it('enthält den aktuellen Stapel und keine Kids/Elektronik-Preise', () => {
     expect(schema).toContain(toSqlInserts())
     expect(schema).not.toContain('steam-deck')
     expect(schema).not.toContain('iphone-16')
     expect(schema).not.toContain("'price'")
+    expect(schema).not.toContain("'kids'")
     expect(schema).toContain("'mozart'")
-    expect(schema).toContain("'k-beethoven'")
-    for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
+    expect(schema).toContain('play_style')
+    expect(schema).toContain('set_play_style')
+    expect(schema).toContain('player_lives')
+    for (const card of ADULT_DECK) {
       expect(schema).toContain(`('${card.id}'`)
     }
   })

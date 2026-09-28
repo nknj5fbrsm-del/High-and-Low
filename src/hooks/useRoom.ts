@@ -4,10 +4,10 @@ import { loadIdentity, saveIdentity } from '../lib/identity.ts'
 import { supabase } from '../lib/supabase.ts'
 import { normalizeDensity } from '../density.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
-import type { Density, GameMode, Guess, Player, RoomState } from '../types.ts'
+import type { Density, Guess, Player, PlayStyle, RoomState } from '../types.ts'
 
 function asRoom(data: unknown): RoomState {
-  const row = data as RoomState
+  const row = data as RoomState & { play_style?: string; player_lives?: unknown; winner_id?: string | null }
   return {
     ...row,
     players: row.players ?? [],
@@ -17,8 +17,9 @@ function asRoom(data: unknown): RoomState {
     next_card: row.next_card ?? null,
     last_result: row.last_result ?? null,
     max_players: row.max_players ?? DEFAULT_PLAYERS,
-    votes: row.votes ?? {},
-    selected_mode: row.selected_mode === 'kids' ? 'kids' : 'adult',
+    play_style: row.play_style === 'versus' ? 'versus' : 'team',
+    player_lives: (row.player_lives as RoomState['player_lives']) ?? {},
+    winner_id: row.winner_id ?? null,
     selected_density: normalizeDensity(row.selected_density),
   }
 }
@@ -182,26 +183,21 @@ export function useRoom() {
     [playerId, runRpc],
   )
 
-  const startGame = useCallback(
-    async (mode?: GameMode) => {
-      if (!room) return
-      await runRpc('start_game', {
-        p_room_code: room.room_code,
-        p_player_id: playerId,
-        p_mode: mode ?? null,
-      })
-    },
-    [playerId, room, runRpc],
-  )
+  const startGame = useCallback(async () => {
+    if (!room) return
+    await runRpc('start_game', {
+      p_room_code: room.room_code,
+      p_player_id: playerId,
+    })
+  }, [playerId, room, runRpc])
 
   const startSolo = useCallback(
-    async (name: string, mode: GameMode, density: Density = 'knackig') => {
+    async (name: string, density: Density = 'knackig') => {
       const trimmed = trimName(name)
       setIdentity(saveIdentity({ name: trimmed }))
       await runRpc('start_solo', {
         p_player_id: playerId,
         p_name: trimmed,
-        p_mode: mode,
         p_density: normalizeDensity(density),
       })
     },
@@ -220,13 +216,13 @@ export function useRoom() {
     [playerId, room, runRpc],
   )
 
-  const voteMode = useCallback(
-    async (mode: GameMode) => {
+  const setPlayStyle = useCallback(
+    async (style: PlayStyle) => {
       if (!room) return
-      await runRpc('vote_mode', {
+      await runRpc('set_play_style', {
         p_room_code: room.room_code,
         p_player_id: playerId,
-        p_mode: mode,
+        p_play_style: style,
       })
     },
     [playerId, room, runRpc],
@@ -269,7 +265,7 @@ export function useRoom() {
     startGame,
     startSolo,
     setDensity,
-    voteMode,
+    setPlayStyle,
     submitGuess,
     restartGame,
     leaveRoom,

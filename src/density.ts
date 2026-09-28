@@ -4,18 +4,7 @@ export const DENSITIES: Density[] = ['locker', 'knackig', 'haarscharf']
 
 /** Land und Stadt darin — niemals als Paar. */
 const SUBSET_KEYS = new Set([
-  pairKey('deutschland', 'berlin'),
-  pairKey('k-de', 'berlin'),
-  pairKey('k-de', 'hamburg'),
-  pairKey('k-de', 'muenchen'),
-  pairKey('k-de', 'koeln-stadt'),
   pairKey('oesterreich', 'wien'),
-  pairKey('k-it', 'mailand'),
-  pairKey('k-fr', 'paris'),
-  pairKey('k-es', 'barcelona'),
-  pairKey('k-es', 'madrid'),
-  pairKey('k-uk', 'london'),
-  pairKey('k-pl', 'warschau'),
 ])
 
 function pairKey(a: string, b: string): string {

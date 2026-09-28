@@ -1,11 +1,12 @@
-import { dealerLine, guessLabels, isSoloRoom, livesForMode } from '../axis.ts'
+import { dealerLine, guessLabels, isSoloRoom, livesForRoom } from '../axis.ts'
 import { isMyTurn } from '../gameLogic.ts'
-import { REVEAL_MS } from '../types.ts'
+import { playRevealSound, isSoundMuted, toggleSoundMuted } from '../lib/sounds.ts'
+import { MAX_LIVES, REVEAL_MS } from '../types.ts'
 import type { Guess, RoomState } from '../types.ts'
 import { FactCardView } from './FactCardView.tsx'
-import { GameHeader } from './GameHeader.tsx'
+import { GameHeader, Lives } from './GameHeader.tsx'
 import { LeaveRoomButton } from './LeaveRoomButton.tsx'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export function GameScreen({
   room,
@@ -23,14 +24,22 @@ export function GameScreen({
   onLeave: () => void
 }) {
   const [revealDoneFor, setRevealDoneFor] = useState<number | null>(null)
+  const [muted, setMuted] = useState(() => isSoundMuted())
+  const heardNonce = useRef<number | null>(null)
   const mine = isMyTurn(room, playerId)
   const currentName = room.players[room.current_player_index]?.name ?? 'jemanden'
   const last = room.last_result
   const revealing = last && revealDoneFor !== room.turn_nonce ? last : null
   const solo = isSoloRoom(room)
+  const versus = room.play_style === 'versus'
+  const myLives = versus ? (room.player_lives[playerId] ?? 0) : room.lives
 
   useEffect(() => {
     if (!room.last_result) return
+    if (heardNonce.current !== room.turn_nonce) {
+      heardNonce.current = room.turn_nonce
+      playRevealSound(room.last_result.correct)
+    }
     const timer = window.setTimeout(() => setRevealDoneFor(room.turn_nonce), REVEAL_MS)
     return () => window.clearTimeout(timer)
   }, [room.last_result, room.turn_nonce])
@@ -38,7 +47,7 @@ export function GameScreen({
   const reference = revealing ? revealing.reference : room.current_card
   const mystery = revealing ? revealing.card : room.next_card
   const labels = reference ? guessLabels(reference.axis) : guessLabels('height')
-  const maxLives = livesForMode(room.selected_mode)
+  const maxLives = livesForRoom()
   const remark =
     revealing && reference && mystery
       ? dealerLine(reference.value, mystery.value, reference.axis)
@@ -57,17 +66,41 @@ export function GameScreen({
     <div className="page-table flex min-h-dvh flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
       <GameHeader
         streak={room.streak}
-        lives={room.lives}
+        lives={myLives}
         maxLives={maxLives}
         roomCode={room.room_code}
         solo={solo}
+        versus={versus}
+        muted={muted}
+        onToggleMute={() => setMuted(toggleSoundMuted())}
       />
+
+      {versus && !solo && (
+        <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-khaki">
+          {room.players.map((player) => {
+            const lives = room.player_lives[player.id] ?? 0
+            const active = room.players[room.current_player_index]?.id === player.id
+            return (
+              <li key={player.id} className={active ? 'text-cream' : lives === 0 ? 'opacity-40' : ''}>
+                <span className="font-medium">{player.name}</span>{' '}
+                <Lives lives={lives} maxLives={MAX_LIVES} />
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
       <div className="mt-4 text-center">
         <p className="font-serif text-lg text-cream">
-          {revealing ? (revealing.correct ? 'Richtig.' : 'Falsch.') : solo || mine ? 'Dein Blatt.' : `Warten auf ${currentName}`}
+          {revealing
+            ? revealing.correct
+              ? 'Richtig.'
+              : 'Falsch.'
+            : solo || mine
+              ? 'Dein Blatt.'
+              : `Warten auf ${currentName}`}
         </p>
-        {revealing?.correct && (
+        {revealing?.correct && !versus && (
           <p className="reward-pop mt-1 font-number text-sm font-semibold text-khaki">
             +1{room.streak >= 3 ? ` · Serie ${room.streak}` : ''}
           </p>

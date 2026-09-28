@@ -1,4 +1,4 @@
-import { categoryLabel, dealerLine, densityLabel, guessLabels, livesForMode, streakTitle, voteCounts, winningMode } from './axis.ts'
+import { categoryLabel, dealerLine, densityLabel, guessLabels, livesForRoom, playStyleLabel, streakTitle } from './axis.ts'
 
 describe('guessLabels', () => {
   it('nimmt die Bedeutung, nicht nur die Einheit', () => {
@@ -51,38 +51,21 @@ describe('dealerLine', () => {
   })
 })
 
-describe('voteCounts', () => {
-  it('zählt Stimmen je Modus', () => {
-    expect(voteCounts({ a: 'kids', b: 'kids', c: 'adult' })).toEqual({ adult: 1, kids: 2 })
-    expect(voteCounts({})).toEqual({ adult: 0, kids: 0 })
+describe('playStyleLabel', () => {
+  it('benennt Team und Gegeneinander', () => {
+    expect(playStyleLabel('team')).toBe('Team')
+    expect(playStyleLabel('versus')).toBe('Gegeneinander')
   })
 })
 
-describe('winningMode', () => {
-  it('nimmt die Mehrheit', () => {
-    expect(winningMode({ a: 'kids', b: 'kids', c: 'adult' }, 'c')).toBe('kids')
-    expect(winningMode({ a: 'adult', b: 'kids' }, 'a')).toBe('adult')
-  })
-
-  it('bei Gleichstand die Stimme des Hosts', () => {
-    expect(winningMode({ host: 'kids', p2: 'adult' }, 'host')).toBe('kids')
-    expect(winningMode({ host: 'adult', p2: 'kids' }, 'host')).toBe('adult')
-  })
-
-  it('ohne Host-Stimme im Gleichstand Erwachsene', () => {
-    expect(winningMode({}, 'host')).toBe('adult')
-  })
-})
-
-describe('livesForMode', () => {
-  it('gibt Kindern mehr Leben', () => {
-    expect(livesForMode('adult')).toBe(3)
-    expect(livesForMode('kids')).toBe(5)
+describe('livesForRoom', () => {
+  it('gibt immer 3 Leben', () => {
+    expect(livesForRoom()).toBe(3)
   })
 })
 
 describe('streakTitle', () => {
-  it('vergibt Titel nach Streak', () => {
+  it('stuft Serien ein', () => {
     expect(streakTitle(0)).toBe('Noch kalt')
     expect(streakTitle(3)).toBe('Fuß in der Tür')
     expect(streakTitle(12)).toBe('Im Fluss')

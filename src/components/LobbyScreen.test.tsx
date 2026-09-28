@@ -20,8 +20,9 @@ const twoPlayers: RoomState = {
   last_result: null,
   turn_nonce: 0,
   max_players: 3,
-  votes: {},
-  selected_mode: 'adult',
+  play_style: 'team',
+  player_lives: {},
+  winner_id: null,
   selected_density: 'knackig',
 }
 
@@ -41,63 +42,36 @@ const lobbyProps = {
   onCreate: noop,
   onJoin: noop,
   onStart: noop,
-    onVote: noop,
-    onSolo: noop,
-    onStartMode: noop,
-    onSetDensity: noop,
-    onLeave: noop,
+  onSolo: noop,
+  onSetDensity: noop,
+  onSetPlayStyle: noop,
+  onLeave: noop,
 }
 
 describe('LobbyScreen', () => {
   it('zeigt 2/3 Spieler ohne Start-Button', () => {
-    render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Max"
-        room={twoPlayers}
-        playerId="p1"
-      />,
-    )
+    render(<LobbyScreen {...lobbyProps} name="Max" room={twoPlayers} playerId="p1" />)
     expect(screen.getByText('Spieler 2/3')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Spiel starten' })).not.toBeInTheDocument()
     expect(screen.getByText('Noch 1 Platz frei.')).toBeInTheDocument()
   })
 
   it('gibt dem Host den Start-Button bei voller Spielerzahl', () => {
-    render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Max"
-        room={fullRoom}
-        playerId="p1"
-      />,
-    )
+    render(<LobbyScreen {...lobbyProps} name="Max" room={fullRoom} playerId="p1" />)
     expect(screen.getByText('Spieler 3/3')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Spiel starten' })).toBeEnabled()
   })
 
   it('startet bei 2/2, wenn der Host zwei Spieler gewählt hat', () => {
     render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Max"
-        room={{ ...twoPlayers, max_players: 2 }}
-        playerId="p1"
-      />,
+      <LobbyScreen {...lobbyProps} name="Max" room={{ ...twoPlayers, max_players: 2 }} playerId="p1" />,
     )
     expect(screen.getByText('Spieler 2/2')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Spiel starten' })).toBeEnabled()
   })
 
   it('zeigt dem Nicht-Host keinen Start-Button', () => {
-    render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Nils"
-        room={fullRoom}
-        playerId="p2"
-      />,
-    )
+    render(<LobbyScreen {...lobbyProps} name="Nils" room={fullRoom} playerId="p2" />)
     expect(screen.queryByRole('button', { name: 'Spiel starten' })).not.toBeInTheDocument()
     expect(screen.getByText('Warte, bis der Host startet …')).toBeInTheDocument()
   })
@@ -156,37 +130,19 @@ describe('LobbyScreen', () => {
     expect(onLeave).toHaveBeenCalledOnce()
   })
 
-  it('startet Solo ohne Lobby mit Modus und Dichte', () => {
+  it('startet Solo ohne Lobby mit Dichte', () => {
     const onSolo = vi.fn()
-    render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Nils"
-        room={null}
-        playerId="p1"
-        onSolo={onSolo}
-      />,
-    )
+    render(<LobbyScreen {...lobbyProps} name="Nils" room={null} playerId="p1" onSolo={onSolo} />)
     expect(screen.getByText('Allein spielen')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Locker' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Knackig' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Haarscharf' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '1' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Haarscharf' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Erwachsene' }))
-    expect(onSolo).toHaveBeenCalledWith('adult', 'haarscharf')
+    fireEvent.click(screen.getByRole('button', { name: 'Solo starten' }))
+    expect(onSolo).toHaveBeenCalledWith('haarscharf')
   })
 
   it('lässt den Host die Dichte vor dem Start festlegen', () => {
     const onSetDensity = vi.fn()
     render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Max"
-        room={fullRoom}
-        playerId="p1"
-        onSetDensity={onSetDensity}
-      />,
+      <LobbyScreen {...lobbyProps} name="Max" room={fullRoom} playerId="p1" onSetDensity={onSetDensity} />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Locker' }))
     expect(onSetDensity).toHaveBeenCalledWith('locker')
@@ -203,46 +159,29 @@ describe('LobbyScreen', () => {
     )
     expect(screen.getAllByText('Haarscharf').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Easy')).not.toBeInTheDocument()
-    expect(screen.queryByText('Medium')).not.toBeInTheDocument()
-    expect(screen.queryByText('Hard')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Locker' })).not.toBeInTheDocument()
   })
 
   it('übergibt die gewählte Spielerzahl beim Erstellen', () => {
     const onCreate = vi.fn()
-    render(
-      <LobbyScreen
-        {...lobbyProps}
-        name="Max"
-        room={null}
-        playerId="p1"
-        onCreate={onCreate}
-      />,
-    )
+    render(<LobbyScreen {...lobbyProps} name="Max" room={null} playerId="p1" onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button', { name: '5' }))
     fireEvent.click(screen.getByRole('button', { name: 'Raum erstellen' }))
     expect(onCreate).toHaveBeenCalledWith(5)
   })
 
-  it('zeigt Stimmen und markiert die eigene Wahl', () => {
-    const onVote = vi.fn()
+  it('lässt den Host Team oder Gegeneinander wählen', () => {
+    const onSetPlayStyle = vi.fn()
     render(
       <LobbyScreen
         {...lobbyProps}
         name="Max"
-        room={{
-          ...fullRoom,
-          votes: { p1: 'kids', p2: 'adult', p3: 'kids' },
-        }}
+        room={fullRoom}
         playerId="p1"
-        onVote={onVote}
+        onSetPlayStyle={onSetPlayStyle}
       />,
     )
-    expect(screen.getByText('1 Stimme')).toBeInTheDocument()
-    expect(screen.getByText('2 Stimmen')).toBeInTheDocument()
-    const kids = screen.getByRole('button', { name: /Kinder/ })
-    expect(kids).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: /Erwachsene/ }))
-    expect(onVote).toHaveBeenCalledWith('adult')
+    fireEvent.click(screen.getByRole('button', { name: /Gegeneinander/ }))
+    expect(onSetPlayStyle).toHaveBeenCalledWith('versus')
   })
 })

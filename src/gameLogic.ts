@@ -7,7 +7,10 @@ import type {
   Guess,
   LastResult,
   Player,
+  PlayerLives,
+  PlayStyle,
 } from './types.ts'
+import { MAX_LIVES } from './types.ts'
 
 export type CardPick = (cards: FactCard[]) => FactCard
 
@@ -62,6 +65,35 @@ export function isMyTurn(
   playerId: string,
 ): boolean {
   return room.players[room.current_player_index]?.id === playerId
+}
+
+export function initPlayerLives(players: Player[], lives: number = MAX_LIVES): PlayerLives {
+  const next: PlayerLives = {}
+  for (const player of players) next[player.id] = lives
+  return next
+}
+
+export function aliveCount(lives: PlayerLives): number {
+  return Object.values(lives).filter((value) => value > 0).length
+}
+
+export function soleSurvivorId(lives: PlayerLives): string | null {
+  const alive = Object.entries(lives).filter(([, value]) => value > 0)
+  return alive.length === 1 ? alive[0][0] : null
+}
+
+export function nextAliveIndex(
+  players: Player[],
+  lives: PlayerLives,
+  fromIndex: number,
+): number {
+  const count = players.length
+  if (count === 0) return 0
+  for (let step = 1; step <= count; step += 1) {
+    const index = (fromIndex + step) % count
+    if ((lives[players[index].id] ?? 0) > 0) return index
+  }
+  return fromIndex % count
 }
 
 function pickPair(
@@ -128,6 +160,9 @@ export function resolveGuess(input: {
   turnNonce: number
   density: Density
   pick?: CardPick
+  playStyle?: PlayStyle
+  players?: Player[]
+  playerLives?: PlayerLives
 }): {
   correct: boolean
   lives: number
@@ -140,10 +175,11 @@ export function resolveGuess(input: {
   gameStatus: GameStatus
   lastResult: LastResult
   turnNonce: number
+  playerLives: PlayerLives
+  winnerId: string | null
 } {
   const pick = input.pick ?? pickRandom
   const correct = isGuessCorrect(input.current, input.next, input.guess)
-  const currentPlayerIndex = (input.currentPlayerIndex + 1) % input.playerCount
   const turnNonce = input.turnNonce + 1
   const lastResult: LastResult = {
     correct,
@@ -151,6 +187,60 @@ export function resolveGuess(input: {
     card: input.next,
     reference: input.current,
   }
+  const playStyle = input.playStyle ?? 'team'
+
+  if (playStyle === 'versus' && input.players && input.playerLives) {
+    const tipper = input.players[input.currentPlayerIndex]
+    const playerLives = { ...input.playerLives }
+    if (!correct && tipper) {
+      playerLives[tipper.id] = Math.max(0, (playerLives[tipper.id] ?? 0) - 1)
+    }
+    const winnerId = soleSurvivorId(playerLives)
+    if (winnerId) {
+      return {
+        correct,
+        lives: 0,
+        streak: 0,
+        currentPlayerIndex: nextAliveIndex(input.players, playerLives, input.currentPlayerIndex),
+        current: input.current,
+        next: input.next,
+        remaining: input.remaining,
+        usedCardIds: usedIdsFrom(input.catalog, input.remaining),
+        gameStatus: 'game_over',
+        lastResult,
+        turnNonce,
+        playerLives,
+        winnerId,
+      }
+    }
+
+    const deal = dealFreshPair(
+      input.remaining,
+      input.catalog,
+      input.density,
+      input.current.axis,
+      pick,
+    )
+    if (!deal) throw new Error('Kein Kartenpaar mehr möglich')
+
+    return {
+      correct,
+      lives: playerLives[tipper?.id ?? ''] ?? 0,
+      streak: 0,
+      currentPlayerIndex: nextAliveIndex(input.players, playerLives, input.currentPlayerIndex),
+      current: deal.current,
+      next: deal.next,
+      remaining: deal.remaining,
+      usedCardIds: usedIdsFrom(input.catalog, deal.remaining),
+      gameStatus: 'playing',
+      lastResult,
+      turnNonce,
+      playerLives,
+      winnerId: null,
+    }
+  }
+
+  const currentPlayerIndex = (input.currentPlayerIndex + 1) % input.playerCount
 
   if (!correct && input.lives - 1 <= 0) {
     return {
@@ -165,6 +255,8 @@ export function resolveGuess(input: {
       gameStatus: 'game_over',
       lastResult,
       turnNonce,
+      playerLives: {},
+      winnerId: null,
     }
   }
 
@@ -191,5 +283,7 @@ export function resolveGuess(input: {
     gameStatus: 'playing',
     lastResult,
     turnNonce,
+    playerLives: {},
+    winnerId: null,
   }
 }

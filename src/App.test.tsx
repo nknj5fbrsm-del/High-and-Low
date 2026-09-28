@@ -24,8 +24,9 @@ const playingRoom: RoomState = {
   last_result: null,
   turn_nonce: 2,
   max_players: 3,
-  votes: {},
-  selected_mode: 'adult',
+  play_style: 'team',
+  player_lives: {},
+  winner_id: null,
   selected_density: 'knackig',
 }
 
@@ -72,7 +73,7 @@ function LeaveHarness({
     startGame: async () => undefined,
     startSolo: async () => undefined,
     setDensity: async () => undefined,
-    voteMode: async () => undefined,
+    setPlayStyle: async () => undefined,
     submitGuess: async () => undefined,
     restartGame: async () => undefined,
     leaveRoom: () => {

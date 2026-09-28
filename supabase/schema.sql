@@ -2,11 +2,18 @@
 -- Komplett im SQL-Editor einfügen und ausführen (idempotent, überschreibt den Kartenstapel).
 
 DROP FUNCTION IF EXISTS vote_mode(text, text, text);
+DROP FUNCTION IF EXISTS set_play_style(text, text, text);
+DROP FUNCTION IF EXISTS init_player_lives(jsonb, integer);
+DROP FUNCTION IF EXISTS alive_count(jsonb);
+DROP FUNCTION IF EXISTS sole_survivor_id(jsonb);
+DROP FUNCTION IF EXISTS next_alive_index(jsonb, jsonb, integer);
 DROP FUNCTION IF EXISTS set_density(text, text, text);
 DROP FUNCTION IF EXISTS submit_guess(text, text, text, integer);
 DROP FUNCTION IF EXISTS restart_game(text, text);
 DROP FUNCTION IF EXISTS start_solo(text, text, text);
 DROP FUNCTION IF EXISTS start_solo(text, text, text, text);
+DROP FUNCTION IF EXISTS start_solo(text, text, text);
+DROP FUNCTION IF EXISTS start_solo(text, text);
 DROP FUNCTION IF EXISTS start_game(text, text);
 DROP FUNCTION IF EXISTS start_game(text, text, text);
 DROP FUNCTION IF EXISTS join_room(text, text, text);
@@ -77,15 +84,31 @@ ALTER TABLE rooms ADD COLUMN IF NOT EXISTS max_players integer NOT NULL DEFAULT 
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS votes jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_mode text NOT NULL DEFAULT 'adult';
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS selected_density text NOT NULL DEFAULT 'knackig';
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS play_style text NOT NULL DEFAULT 'team';
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS player_lives jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS winner_id text;
 
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_max_players_range;
 ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_range CHECK (max_players BETWEEN 1 AND 6);
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_max_players_ok;
+ALTER TABLE rooms ADD CONSTRAINT rooms_max_players_ok CHECK (max_players BETWEEN 1 AND 6);
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_mode_ok;
-ALTER TABLE rooms ADD CONSTRAINT rooms_selected_mode_ok CHECK (selected_mode IN ('adult', 'kids'));
+UPDATE rooms SET selected_mode = 'adult' WHERE selected_mode IS DISTINCT FROM 'adult';
+ALTER TABLE rooms ADD CONSTRAINT rooms_selected_mode_ok CHECK (selected_mode IN ('adult'));
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_selected_density_ok;
+UPDATE rooms SET selected_density = 'knackig'
+  WHERE selected_density IS NULL OR selected_density NOT IN ('locker', 'knackig', 'haarscharf');
 ALTER TABLE rooms ADD CONSTRAINT rooms_selected_density_ok CHECK (selected_density IN ('locker', 'knackig', 'haarscharf'));
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_play_style_ok;
+UPDATE rooms SET play_style = 'team' WHERE play_style IS NULL OR play_style NOT IN ('team', 'versus');
+ALTER TABLE rooms ADD CONSTRAINT rooms_play_style_ok CHECK (play_style IN ('team', 'versus'));
 ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_votes_object;
+UPDATE rooms SET votes = '{}'::jsonb WHERE votes IS NULL OR jsonb_typeof(votes) IS DISTINCT FROM 'object';
 ALTER TABLE rooms ADD CONSTRAINT rooms_votes_object CHECK (jsonb_typeof(votes) = 'object');
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_player_lives_object;
+UPDATE rooms SET player_lives = '{}'::jsonb
+  WHERE player_lives IS NULL OR jsonb_typeof(player_lives) IS DISTINCT FROM 'object';
+ALTER TABLE rooms ADD CONSTRAINT rooms_player_lives_object CHECK (jsonb_typeof(player_lives) = 'object');
 
 TRUNCATE fact_cards;
 
@@ -359,59 +382,7 @@ INSERT INTO fact_cards (id, title, value, unit, axis, deck) VALUES
   ('orange', 'Orange', 47, 'kcal/100g', 'calories', 'adult'),
   ('tomate', 'Tomate', 18, 'kcal/100g', 'calories', 'adult'),
   ('gurke', 'Gurke', 12, 'kcal/100g', 'calories', 'adult'),
-  ('salat', 'Kopfsalat', 15, 'kcal/100g', 'calories', 'adult'),
-  ('k-de', 'Deutschland', 84, 'Mio.', 'population', 'kids'),
-  ('k-fr', 'Frankreich', 68, 'Mio.', 'population', 'kids'),
-  ('k-uk', 'Vereinigtes Königreich', 67, 'Mio.', 'population', 'kids'),
-  ('k-it', 'Italien', 59, 'Mio.', 'population', 'kids'),
-  ('k-es', 'Spanien', 48, 'Mio.', 'population', 'kids'),
-  ('k-pl', 'Polen', 38, 'Mio.', 'population', 'kids'),
-  ('k-nl', 'Niederlande', 18, 'Mio.', 'population', 'kids'),
-  ('k-cz', 'Tschechien', 10.9, 'Mio.', 'population', 'kids'),
-  ('k-fr-km2', 'Frankreich', 543940, 'km²', 'area', 'kids'),
-  ('k-es-km2', 'Spanien', 505990, 'km²', 'area', 'kids'),
-  ('k-jp-km2', 'Japan', 377975, 'km²', 'area', 'kids'),
-  ('k-de-km2', 'Deutschland', 357588, 'km²', 'area', 'kids'),
-  ('k-pl-km2', 'Polen', 312679, 'km²', 'area', 'kids'),
-  ('k-it-km2', 'Italien', 301340, 'km²', 'area', 'kids'),
-  ('k-uk-km2', 'Vereinigtes Königreich', 243610, 'km²', 'area', 'kids'),
-  ('k-liberty', 'Freiheitsstatue', 93, 'm', 'height', 'kids'),
-  ('k-dom', 'Kölner Dom', 157, 'm', 'height', 'kids'),
-  ('k-eiffel', 'Eiffelturm', 330, 'm', 'height', 'kids'),
-  ('k-berlin-h', 'Berliner Fernsehturm', 368, 'm', 'height', 'kids'),
-  ('k-mensch', 'Mensch', 77, 'kg', 'weight', 'kids'),
-  ('k-panda', 'Panda', 100, 'kg', 'weight', 'kids'),
-  ('k-gorilla', 'Gorilla', 160, 'kg', 'weight', 'kids'),
-  ('k-loewe', 'Löwe, Männchen', 190, 'kg', 'weight', 'kids'),
-  ('k-tiger', 'Tiger, Männchen', 220, 'kg', 'weight', 'kids'),
-  ('k-bach', 'Johann Sebastian Bach', 1685, 'Jahr', 'year', 'kids'),
-  ('k-vivaldi', 'Antonio Vivaldi', 1678, 'Jahr', 'year', 'kids'),
-  ('k-haydn', 'Joseph Haydn', 1732, 'Jahr', 'year', 'kids'),
-  ('k-mozart', 'Wolfgang Amadeus Mozart', 1756, 'Jahr', 'year', 'kids'),
-  ('k-beethoven', 'Ludwig van Beethoven', 1770, 'Jahr', 'year', 'kids'),
-  ('k-chopin', 'Frédéric Chopin', 1810, 'Jahr', 'year', 'kids'),
-  ('k-vangogh', 'Vincent van Gogh', 1853, 'Jahr', 'year', 'kids'),
-  ('k-picasso', 'Pablo Picasso', 1881, 'Jahr', 'year', 'kids'),
-  ('k-bolt', 'Usain Bolt', 38, 'km/h', 'speed', 'kids'),
-  ('k-pferd-kmh', 'Pferd im Galopp', 45, 'km/h', 'speed', 'kids'),
-  ('k-delphin', 'Delfin', 55, 'km/h', 'speed', 'kids'),
-  ('k-windhund', 'Windhund', 70, 'km/h', 'speed', 'kids'),
-  ('k-gepard', 'Gepard', 110, 'km/h', 'speed', 'kids'),
-  ('k-hh', 'Berlin–Hamburg', 289, 'km', 'distance', 'kids'),
-  ('k-prag', 'Berlin–Prag', 350, 'km', 'distance', 'kids'),
-  ('k-koeln', 'Hamburg–Köln', 430, 'km', 'distance', 'kids'),
-  ('k-berlin-muc', 'Berlin–München', 585, 'km', 'distance', 'kids'),
-  ('k-hh-muc', 'Hamburg–München', 790, 'km', 'distance', 'kids'),
-  ('k-zimmer', 'Zimmertemperatur', 20, '°C', 'temp', 'kids'),
-  ('k-fruehling', 'Milder Frühlingstag', 22, '°C', 'temp', 'kids'),
-  ('k-sommer', 'Sommertag', 28, '°C', 'temp', 'kids'),
-  ('k-koerper', 'Körpertemperatur', 37, '°C', 'temp', 'kids'),
-  ('k-wueste', 'Wüste am Tag', 45, '°C', 'temp', 'kids'),
-  ('k-insekt', 'Beine eines Insekts', 6, 'Stück', 'count', 'kids'),
-  ('k-kontinente', 'Kontinente', 7, 'Stück', 'count', 'kids'),
-  ('k-planeten', 'Planeten im Sonnensystem', 8, 'Stück', 'count', 'kids'),
-  ('k-spinne', 'Beine einer Spinne', 8, 'Stück', 'count', 'kids'),
-  ('k-milchzaehne', 'Milchzähne', 20, 'Stück', 'count', 'kids');
+  ('salat', 'Kopfsalat', 15, 'kcal/100g', 'calories', 'adult');
 
 CREATE TYPE deal_result AS (
   current_card jsonb,
@@ -659,40 +630,60 @@ AS $$
   SELECT deal_fresh_pair(p_pool, p_pool, p_density, NULL);
 $$;
 
-CREATE OR REPLACE FUNCTION winning_mode(p_votes jsonb, p_host_id text)
+CREATE OR REPLACE FUNCTION init_player_lives(p_players jsonb, p_lives integer DEFAULT 3)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT coalesce(jsonb_object_agg(elem->>'id', p_lives), '{}'::jsonb)
+  FROM jsonb_array_elements(coalesce(p_players, '[]'::jsonb)) elem
+  WHERE elem->>'id' IS NOT NULL;
+$$;
+
+CREATE OR REPLACE FUNCTION alive_count(p_lives jsonb)
+RETURNS integer
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT coalesce(count(*) FILTER (WHERE (value)::int > 0), 0)::integer
+  FROM jsonb_each_text(coalesce(p_lives, '{}'::jsonb));
+$$;
+
+CREATE OR REPLACE FUNCTION sole_survivor_id(p_lives jsonb)
 RETURNS text
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT CASE WHEN count(*) = 1 THEN min(key) ELSE NULL END
+  FROM jsonb_each_text(coalesce(p_lives, '{}'::jsonb))
+  WHERE (value)::int > 0;
+$$;
+
+CREATE OR REPLACE FUNCTION next_alive_index(p_players jsonb, p_lives jsonb, p_from integer)
+RETURNS integer
 LANGUAGE plpgsql
 STABLE
 AS $$
 DECLARE
-  v_adult integer := 0;
-  v_kids integer := 0;
-  rec record;
-  v_host text;
+  v_count integer := jsonb_array_length(coalesce(p_players, '[]'::jsonb));
+  v_index integer;
+  v_id text;
+  i integer;
 BEGIN
-  FOR rec IN SELECT value FROM jsonb_each_text(coalesce(p_votes, '{}'::jsonb))
-  LOOP
-    IF rec.value = 'kids' THEN
-      v_kids := v_kids + 1;
-    ELSIF rec.value = 'adult' THEN
-      v_adult := v_adult + 1;
+  IF v_count = 0 THEN
+    RETURN 0;
+  END IF;
+  FOR i IN 1..v_count LOOP
+    v_index := (p_from + i) % v_count;
+    v_id := p_players -> v_index ->> 'id';
+    IF coalesce((p_lives ->> v_id)::int, 0) > 0 THEN
+      RETURN v_index;
     END IF;
   END LOOP;
-
-  IF v_kids > v_adult THEN
-    RETURN 'kids';
-  END IF;
-  IF v_adult > v_kids THEN
-    RETURN 'adult';
-  END IF;
-
-  v_host := coalesce(p_votes ->> p_host_id, 'adult');
-  IF v_host IN ('adult', 'kids') THEN
-    RETURN v_host;
-  END IF;
-  RETURN 'adult';
+  RETURN p_from % v_count;
 END;
 $$;
+
 
 CREATE OR REPLACE FUNCTION create_room(p_player_id text, p_name text, p_max_players integer)
 RETURNS jsonb
@@ -727,15 +718,18 @@ BEGIN
       chr(65 + floor(random() * 26)::int) ||
       chr(65 + floor(random() * 26)::int);
     BEGIN
-      INSERT INTO rooms (room_code, players, host_id, game_status, max_players, votes, selected_mode)
+      INSERT INTO rooms (room_code, players, host_id, game_status, max_players, votes, selected_mode, play_style, player_lives, winner_id)
       VALUES (
         v_code,
         v_players,
         p_player_id,
         'lobby',
         v_max,
-        jsonb_build_object(p_player_id, 'adult'),
-        'adult'
+        '{}'::jsonb,
+        'adult',
+        'team',
+        '{}'::jsonb,
+        NULL
       )
       RETURNING * INTO r;
       RETURN to_jsonb(r);
@@ -758,7 +752,7 @@ AS $$
   SELECT create_room(p_player_id, p_name, 3);
 $$;
 
-CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text, p_density text)
+CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_density text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -772,7 +766,6 @@ DECLARE
   i integer;
   v_catalog jsonb;
   d deal_result;
-  v_lives integer;
   v_density text := coalesce(p_density, 'knackig');
 BEGIN
   IF p_player_id IS NULL OR length(p_player_id) < 8 OR length(p_player_id) > 80 THEN
@@ -781,16 +774,12 @@ BEGIN
   IF v_name IS NULL OR length(v_name) < 1 OR length(v_name) > 20 THEN
     RAISE EXCEPTION 'Bitte gib einen Namen (1–20 Zeichen) ein.';
   END IF;
-  IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
-    RAISE EXCEPTION 'Bitte wähle Erwachsene oder Kinder.';
-  END IF;
   IF v_density NOT IN ('locker', 'knackig', 'haarscharf') THEN
     RAISE EXCEPTION 'Bitte wähle Locker, Knackig oder Haarscharf.';
   END IF;
 
   v_players := jsonb_build_array(jsonb_build_object('id', p_player_id, 'name', v_name));
-  v_lives := CASE WHEN p_mode = 'kids' THEN 5 ELSE 3 END;
-  v_catalog := load_catalog(p_mode);
+  v_catalog := load_catalog('adult');
   d := deal_opening_pair(v_catalog, v_density);
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
@@ -805,12 +794,13 @@ BEGIN
     BEGIN
       INSERT INTO rooms (
         room_code, players, host_id, game_status, max_players, votes, selected_mode,
-        selected_density, current_player_index, lives, streak, current_card, next_card,
+        selected_density, play_style, player_lives, winner_id,
+        current_player_index, lives, streak, current_card, next_card,
         remaining_cards, used_card_ids, last_result, turn_nonce
       ) VALUES (
         v_code, v_players, p_player_id, 'playing', 1,
-        jsonb_build_object(p_player_id, p_mode), p_mode, v_density,
-        0, v_lives, 0, d.current_card, d.next_card, d.remaining,
+        '{}'::jsonb, 'adult', v_density, 'team', '{}'::jsonb, NULL,
+        0, 3, 0, d.current_card, d.next_card, d.remaining,
         used_card_ids(v_catalog, d.remaining), NULL, 1
       )
       RETURNING * INTO r;
@@ -825,13 +815,13 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text, p_mode text)
+CREATE OR REPLACE FUNCTION start_solo(p_player_id text, p_name text)
 RETURNS jsonb
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT start_solo(p_player_id, p_name, p_mode, 'knackig');
+  SELECT start_solo(p_player_id, p_name, 'knackig');
 $$;
 
 CREATE OR REPLACE FUNCTION join_room(p_room_code text, p_player_id text, p_name text)
@@ -889,7 +879,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION vote_mode(p_room_code text, p_player_id text, p_mode text)
+CREATE OR REPLACE FUNCTION set_play_style(p_room_code text, p_player_id text, p_play_style text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -898,11 +888,9 @@ AS $$
 DECLARE
   v_code text := upper(trim(p_room_code));
   r rooms%ROWTYPE;
-  v_in_room boolean := false;
-  i integer;
 BEGIN
-  IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
-    RAISE EXCEPTION 'Ungültiger Modus.';
+  IF p_play_style IS DISTINCT FROM 'team' AND p_play_style IS DISTINCT FROM 'versus' THEN
+    RAISE EXCEPTION 'Ungültiger Spielmodus.';
   END IF;
 
   SELECT * INTO r FROM rooms WHERE room_code = v_code FOR UPDATE;
@@ -910,24 +898,14 @@ BEGIN
     RAISE EXCEPTION 'Raum nicht gefunden.';
   END IF;
   IF r.game_status IS DISTINCT FROM 'lobby' THEN
-    RAISE EXCEPTION 'Abstimmung nur in der Lobby.';
+    RAISE EXCEPTION 'Spielmodus nur in der Lobby.';
   END IF;
-
-  FOR i IN 0..greatest(jsonb_array_length(r.players) - 1, 0) LOOP
-    IF jsonb_array_length(r.players) = 0 THEN
-      EXIT;
-    END IF;
-    IF r.players->i->>'id' = p_player_id THEN
-      v_in_room := true;
-    END IF;
-  END LOOP;
-
-  IF NOT v_in_room THEN
-    RAISE EXCEPTION 'Du bist nicht in diesem Raum.';
+  IF r.host_id IS DISTINCT FROM p_player_id THEN
+    RAISE EXCEPTION 'Nur der Host legt den Spielmodus fest.';
   END IF;
 
   UPDATE rooms
-  SET votes = jsonb_set(coalesce(r.votes, '{}'::jsonb), ARRAY[p_player_id], to_jsonb(p_mode), true)
+  SET play_style = p_play_style
   WHERE room_code = v_code
   RETURNING * INTO r;
 
@@ -969,7 +947,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text, p_mode text DEFAULT NULL)
+CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -980,9 +958,10 @@ DECLARE
   r rooms%ROWTYPE;
   v_catalog jsonb;
   d deal_result;
-  v_mode text;
-  v_lives integer;
+  v_lives integer := 3;
   v_max integer;
+  v_style text;
+  v_player_lives jsonb;
 BEGIN
   SELECT * INTO r FROM rooms WHERE room_code = v_code FOR UPDATE;
   IF NOT FOUND THEN
@@ -1003,19 +982,17 @@ BEGIN
     RAISE EXCEPTION 'Es müssen genau % Spieler da sein.', v_max;
   END IF;
 
-  IF v_max = 1 THEN
-    IF p_mode IS DISTINCT FROM 'adult' AND p_mode IS DISTINCT FROM 'kids' THEN
-      RAISE EXCEPTION 'Bitte wähle Erwachsene oder Kinder.';
-    END IF;
-    v_mode := p_mode;
-  ELSE
-    v_mode := winning_mode(r.votes, r.host_id);
-  END IF;
-  v_lives := CASE WHEN v_mode = 'kids' THEN 5 ELSE 3 END;
-  v_catalog := load_catalog(v_mode);
+  v_style := coalesce(r.play_style, 'team');
+  v_catalog := load_catalog('adult');
   d := deal_opening_pair(v_catalog, coalesce(r.selected_density, 'knackig'));
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
+  END IF;
+
+  IF v_style = 'versus' THEN
+    v_player_lives := init_player_lives(r.players, 3);
+  ELSE
+    v_player_lives := '{}'::jsonb;
   END IF;
 
   UPDATE rooms SET
@@ -1028,22 +1005,15 @@ BEGIN
     used_card_ids = used_card_ids(v_catalog, d.remaining),
     game_status = 'playing',
     last_result = NULL,
-    selected_mode = v_mode,
+    selected_mode = 'adult',
+    player_lives = v_player_lives,
+    winner_id = NULL,
     turn_nonce = r.turn_nonce + 1
   WHERE room_code = v_code
   RETURNING * INTO r;
 
   RETURN to_jsonb(r);
 END;
-$$;
-
-CREATE OR REPLACE FUNCTION start_game(p_room_code text, p_player_id text)
-RETURNS jsonb
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT start_game(p_room_code, p_player_id, NULL);
 $$;
 
 CREATE OR REPLACE FUNCTION submit_guess(
@@ -1070,6 +1040,11 @@ DECLARE
   v_current jsonb;
   v_next jsonb;
   v_remaining jsonb;
+  v_style text;
+  v_player_lives jsonb;
+  v_tipper text;
+  v_next_index integer;
+  v_winner text;
 BEGIN
   IF p_guess IS DISTINCT FROM 'higher' AND p_guess IS DISTINCT FROM 'lower' THEN
     RAISE EXCEPTION 'Ungültige Schätzung.';
@@ -1102,23 +1077,52 @@ BEGIN
     OR (p_guess = 'higher' AND v_nxt > v_cur)
     OR (p_guess = 'lower' AND v_nxt < v_cur);
 
-  v_catalog := load_catalog(coalesce(r.selected_mode, 'adult'));
+  v_catalog := load_catalog('adult');
+  v_style := coalesce(r.play_style, 'team');
+  v_player_lives := coalesce(r.player_lives, '{}'::jsonb);
+  v_winner := NULL;
+  v_next_index := (r.current_player_index + 1) % jsonb_array_length(r.players);
 
-  IF v_correct THEN
-    v_lives := r.lives;
-    v_streak := r.streak + 1;
-    v_status := 'playing';
-  ELSE
-    v_lives := r.lives - 1;
-    v_streak := r.streak;
-    IF v_lives <= 0 THEN
-      v_lives := 0;
+  IF v_style = 'versus' THEN
+    v_tipper := r.players -> r.current_player_index ->> 'id';
+    v_streak := 0;
+    IF NOT v_correct THEN
+      v_player_lives := jsonb_set(
+        v_player_lives,
+        ARRAY[v_tipper],
+        to_jsonb(greatest(coalesce((v_player_lives ->> v_tipper)::int, 0) - 1, 0)),
+        true
+      );
+    END IF;
+    v_lives := coalesce((v_player_lives ->> v_tipper)::int, 0);
+    v_winner := sole_survivor_id(v_player_lives);
+    IF v_winner IS NOT NULL THEN
       v_status := 'game_over';
       v_current := r.current_card;
       v_next := r.next_card;
       v_remaining := r.remaining_cards;
+      v_next_index := next_alive_index(r.players, v_player_lives, r.current_player_index);
     ELSE
       v_status := 'playing';
+      v_next_index := next_alive_index(r.players, v_player_lives, r.current_player_index);
+    END IF;
+  ELSE
+    IF v_correct THEN
+      v_lives := r.lives;
+      v_streak := r.streak + 1;
+      v_status := 'playing';
+    ELSE
+      v_lives := r.lives - 1;
+      v_streak := r.streak;
+      IF v_lives <= 0 THEN
+        v_lives := 0;
+        v_status := 'game_over';
+        v_current := r.current_card;
+        v_next := r.next_card;
+        v_remaining := r.remaining_cards;
+      ELSE
+        v_status := 'playing';
+      END IF;
     END IF;
   END IF;
 
@@ -1141,12 +1145,14 @@ BEGIN
   UPDATE rooms SET
     lives = v_lives,
     streak = v_streak,
-    current_player_index = (r.current_player_index + 1) % jsonb_array_length(r.players),
+    current_player_index = v_next_index,
     current_card = v_current,
     next_card = v_next,
     remaining_cards = coalesce(v_remaining, r.remaining_cards),
     used_card_ids = used_card_ids(v_catalog, coalesce(v_remaining, r.remaining_cards)),
     game_status = v_status,
+    player_lives = v_player_lives,
+    winner_id = v_winner,
     last_result = jsonb_build_object(
       'correct', v_correct,
       'guess', p_guess,
@@ -1175,8 +1181,8 @@ DECLARE
   d deal_result;
   v_in_room boolean := false;
   i integer;
-  v_mode text;
-  v_lives integer;
+  v_style text;
+  v_player_lives jsonb;
 BEGIN
   SELECT * INTO r FROM rooms WHERE room_code = v_code FOR UPDATE;
   IF NOT FOUND THEN
@@ -1205,17 +1211,22 @@ BEGIN
     RAISE EXCEPTION 'Es müssen genau % Spieler da sein.', coalesce(r.max_players, 3);
   END IF;
 
-  v_mode := coalesce(r.selected_mode, 'adult');
-  v_lives := CASE WHEN v_mode = 'kids' THEN 5 ELSE 3 END;
-  v_catalog := load_catalog(v_mode);
+  v_style := coalesce(r.play_style, 'team');
+  v_catalog := load_catalog('adult');
   d := deal_opening_pair(v_catalog, coalesce(r.selected_density, 'knackig'));
   IF d.current_card IS NULL OR d.next_card IS NULL THEN
     RAISE EXCEPTION 'Kartenstapel ist unvollständig.';
   END IF;
 
+  IF v_style = 'versus' THEN
+    v_player_lives := init_player_lives(r.players, 3);
+  ELSE
+    v_player_lives := '{}'::jsonb;
+  END IF;
+
   UPDATE rooms SET
     current_player_index = 0,
-    lives = v_lives,
+    lives = 3,
     streak = 0,
     current_card = d.current_card,
     next_card = d.next_card,
@@ -1223,6 +1234,8 @@ BEGIN
     used_card_ids = used_card_ids(v_catalog, d.remaining),
     game_status = 'playing',
     last_result = NULL,
+    player_lives = v_player_lives,
+    winner_id = NULL,
     turn_nonce = r.turn_nonce + 1
   WHERE room_code = v_code
   RETURNING * INTO r;
@@ -1255,12 +1268,11 @@ GRANT SELECT ON TABLE rooms TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_room(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_room(text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION join_room(text, text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION vote_mode(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION set_play_style(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION set_density(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION start_solo(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_solo(text, text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION start_solo(text, text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION start_game(text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION start_game(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION submit_guess(text, text, text, integer) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION restart_game(text, text) TO anon, authenticated;
 

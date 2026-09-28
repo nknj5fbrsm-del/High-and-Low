@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { isSoloRoom, livesForMode } from './axis.ts'
+import { isSoloRoom, livesForRoom } from './axis.ts'
 import { isGameOverScreen } from './appFlow.ts'
 import { GameOverScreen } from './components/GameOverScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
@@ -58,10 +58,9 @@ export function AppView({ game }: { game: GameSession }) {
         onCreate={(maxPlayers) => void game.createRoom(name, maxPlayers)}
         onJoin={() => void game.joinRoom(joinCode, name)}
         onStart={() => void game.startGame()}
-        onVote={(mode) => void game.voteMode(mode)}
-        onSolo={(mode, density) => void game.startSolo(name, mode, density)}
-        onStartMode={(mode) => void game.startGame(mode)}
+        onSolo={(density) => void game.startSolo(name, density)}
         onSetDensity={(density) => void game.setDensity(density)}
+        onSetPlayStyle={(style) => void game.setPlayStyle(style)}
         onLeave={game.leaveRoom}
       />
     )
@@ -69,12 +68,18 @@ export function AppView({ game }: { game: GameSession }) {
 
   if (isGameOverScreen(status, game.room.turn_nonce, finishedNonce)) {
     const solo = isSoloRoom(game.room)
+    const versus = game.room.play_style === 'versus'
+    const winner = versus
+      ? game.room.players.find((player) => player.id === game.room?.winner_id)?.name ?? null
+      : null
     return (
       <GameOverScreen
         streak={game.room.streak}
         best={solo ? soloBest : game.room.streak}
         solo={solo}
-        maxLives={livesForMode(game.room.selected_mode)}
+        versus={versus}
+        winnerName={winner}
+        maxLives={livesForRoom()}
         roomCode={game.room.room_code}
         busy={game.busy}
         error={game.error}

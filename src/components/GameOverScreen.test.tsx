@@ -22,6 +22,26 @@ describe('GameOverScreen', () => {
     expect(screen.getByRole('button', { name: 'Neues Spiel' })).toBeEnabled()
   })
 
+  it('zeigt den Versus-Sieger', () => {
+    render(
+      <GameOverScreen
+        streak={0}
+        best={0}
+        solo={false}
+        versus
+        winnerName="Nils"
+        maxLives={3}
+        roomCode="ABCD"
+        busy={false}
+        error={null}
+        onRestart={() => {}}
+        onLeave={() => {}}
+      />,
+    )
+    expect(screen.getByText('Nils gewinnt.')).toBeInTheDocument()
+    expect(screen.getByText('Nils')).toBeInTheDocument()
+  })
+
   it('zeigt Solo-Rekord und Nochmal', () => {
     render(
       <GameOverScreen

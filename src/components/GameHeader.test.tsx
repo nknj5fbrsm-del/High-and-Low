@@ -1,14 +1,31 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { GameHeader } from './GameHeader.tsx'
 
 describe('GameHeader', () => {
-  it('zeigt drei Leben im Erwachsenen-Modus', () => {
+  it('zeigt drei Leben', () => {
     render(<GameHeader streak={4} lives={2} maxLives={3} roomCode="ABCD" />)
     expect(screen.getByLabelText('2 von 3 Leben')).toHaveTextContent('♥ ♥ ♡')
   })
 
-  it('zeigt fünf Leben im Kinder-Modus', () => {
-    render(<GameHeader streak={1} lives={5} maxLives={5} roomCode="ABCD" />)
-    expect(screen.getByLabelText('5 von 5 Leben')).toHaveTextContent('♥ ♥ ♥ ♥ ♥')
+  it('blendet die Serie im Versus aus', () => {
+    render(<GameHeader streak={9} lives={2} maxLives={3} roomCode="ABCD" versus />)
+    expect(screen.queryByLabelText('Serie 9')).not.toBeInTheDocument()
+    expect(screen.getByText('Duell · ABCD')).toBeInTheDocument()
+  })
+
+  it('schaltet den Ton um', () => {
+    const onToggleMute = vi.fn()
+    render(
+      <GameHeader
+        streak={4}
+        lives={2}
+        maxLives={3}
+        roomCode="ABCD"
+        muted={false}
+        onToggleMute={onToggleMute}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ton aus' }))
+    expect(onToggleMute).toHaveBeenCalledOnce()
   })
 })

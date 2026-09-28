@@ -290,70 +290,6 @@ export const ADULT_DECK: FactCard[] = [
   c('salat', 'Kopfsalat', 15, 'kcal/100g', 'calories'),
 ]
 
-/** Kinder-Stapel: bekannte Namen, eher Locker/Knackig, keine Comic-Figuren. */
-export const KIDS_DECK: FactCard[] = [
-  c('k-de', 'Deutschland', 84, 'Mio.', 'population'),
-  c('k-fr', 'Frankreich', 68, 'Mio.', 'population'),
-  c('k-uk', 'Vereinigtes Königreich', 67, 'Mio.', 'population'),
-  c('k-it', 'Italien', 59, 'Mio.', 'population'),
-  c('k-es', 'Spanien', 48, 'Mio.', 'population'),
-  c('k-pl', 'Polen', 38, 'Mio.', 'population'),
-  c('k-nl', 'Niederlande', 18, 'Mio.', 'population'),
-  c('k-cz', 'Tschechien', 10.9, 'Mio.', 'population'),
-
-  c('k-fr-km2', 'Frankreich', 543940, 'km²', 'area'),
-  c('k-es-km2', 'Spanien', 505990, 'km²', 'area'),
-  c('k-jp-km2', 'Japan', 377975, 'km²', 'area'),
-  c('k-de-km2', 'Deutschland', 357588, 'km²', 'area'),
-  c('k-pl-km2', 'Polen', 312679, 'km²', 'area'),
-  c('k-it-km2', 'Italien', 301340, 'km²', 'area'),
-  c('k-uk-km2', 'Vereinigtes Königreich', 243610, 'km²', 'area'),
-
-  c('k-liberty', 'Freiheitsstatue', 93, 'm', 'height'),
-  c('k-dom', 'Kölner Dom', 157, 'm', 'height'),
-  c('k-eiffel', 'Eiffelturm', 330, 'm', 'height'),
-  c('k-berlin-h', 'Berliner Fernsehturm', 368, 'm', 'height'),
-
-  c('k-mensch', 'Mensch', 77, 'kg', 'weight'),
-  c('k-panda', 'Panda', 100, 'kg', 'weight'),
-  c('k-gorilla', 'Gorilla', 160, 'kg', 'weight'),
-  c('k-loewe', 'Löwe, Männchen', 190, 'kg', 'weight'),
-  c('k-tiger', 'Tiger, Männchen', 220, 'kg', 'weight'),
-
-  c('k-bach', 'Johann Sebastian Bach', 1685, 'Jahr', 'year'),
-  c('k-vivaldi', 'Antonio Vivaldi', 1678, 'Jahr', 'year'),
-  c('k-haydn', 'Joseph Haydn', 1732, 'Jahr', 'year'),
-  c('k-mozart', 'Wolfgang Amadeus Mozart', 1756, 'Jahr', 'year'),
-  c('k-beethoven', 'Ludwig van Beethoven', 1770, 'Jahr', 'year'),
-  c('k-chopin', 'Frédéric Chopin', 1810, 'Jahr', 'year'),
-  c('k-vangogh', 'Vincent van Gogh', 1853, 'Jahr', 'year'),
-  c('k-picasso', 'Pablo Picasso', 1881, 'Jahr', 'year'),
-
-  c('k-bolt', 'Usain Bolt', 38, 'km/h', 'speed'),
-  c('k-pferd-kmh', 'Pferd im Galopp', 45, 'km/h', 'speed'),
-  c('k-delphin', 'Delfin', 55, 'km/h', 'speed'),
-  c('k-windhund', 'Windhund', 70, 'km/h', 'speed'),
-  c('k-gepard', 'Gepard', 110, 'km/h', 'speed'),
-
-  c('k-hh', 'Berlin–Hamburg', 289, 'km', 'distance'),
-  c('k-prag', 'Berlin–Prag', 350, 'km', 'distance'),
-  c('k-koeln', 'Hamburg–Köln', 430, 'km', 'distance'),
-  c('k-berlin-muc', 'Berlin–München', 585, 'km', 'distance'),
-  c('k-hh-muc', 'Hamburg–München', 790, 'km', 'distance'),
-
-  c('k-zimmer', 'Zimmertemperatur', 20, '°C', 'temp'),
-  c('k-fruehling', 'Milder Frühlingstag', 22, '°C', 'temp'),
-  c('k-sommer', 'Sommertag', 28, '°C', 'temp'),
-  c('k-koerper', 'Körpertemperatur', 37, '°C', 'temp'),
-  c('k-wueste', 'Wüste am Tag', 45, '°C', 'temp'),
-
-  c('k-insekt', 'Beine eines Insekts', 6, 'Stück', 'count'),
-  c('k-kontinente', 'Kontinente', 7, 'Stück', 'count'),
-  c('k-planeten', 'Planeten im Sonnensystem', 8, 'Stück', 'count'),
-  c('k-spinne', 'Beine einer Spinne', 8, 'Stück', 'count'),
-  c('k-milchzaehne', 'Milchzähne', 20, 'Stück', 'count'),
-]
-
 export const DECK = ADULT_DECK
 
 export function unitsInDeck(cards: FactCard[] = DECK): string[] {
@@ -369,9 +305,8 @@ export function sqlEscape(value: string): string {
 }
 
 export function toSqlInserts(): string {
-  const row = (card: FactCard, deck: string) =>
-    `  ('${sqlEscape(card.id)}', '${sqlEscape(card.title)}', ${card.value}, '${sqlEscape(card.unit)}', '${card.axis}', '${deck}')`
-  const adult = ADULT_DECK.map((card) => row(card, 'adult')).join(',\n')
-  const kids = KIDS_DECK.map((card) => row(card, 'kids')).join(',\n')
-  return `${adult},\n${kids}`
+  return ADULT_DECK.map(
+    (card) =>
+      `  ('${sqlEscape(card.id)}', '${sqlEscape(card.title)}', ${card.value}, '${sqlEscape(card.unit)}', '${card.axis}', 'adult')`,
+  ).join(',\n')
 }

@@ -1,13 +1,17 @@
-import { ADULT_DECK, KIDS_DECK, axesInDeck } from './deck.ts'
+import { ADULT_DECK, axesInDeck } from './deck.ts'
 import {
+  aliveCount,
   canFormOpeningPair,
   cardsOfAxis,
   dealFreshPair,
   dealOpeningPair,
+  initPlayerLives,
   isGuessCorrect,
   isMyTurn,
+  nextAliveIndex,
   pickFirst,
   resolveGuess,
+  soleSurvivorId,
   usedIdsFrom,
 } from './gameLogic.ts'
 import { MAX_LIVES } from './types.ts'
@@ -37,23 +41,20 @@ const miniDeck: FactCard[] = [
 ]
 
 describe('Deck', () => {
-  it('hat mindestens 80 Erwachsenen- und 40 Kinderkarten', () => {
-    expect(ADULT_DECK.length).toBeGreaterThanOrEqual(80)
-    expect(KIDS_DECK.length).toBeGreaterThanOrEqual(40)
+  it('hat mindestens 200 Erwachsenen-Karten', () => {
+    expect(ADULT_DECK.length).toBeGreaterThanOrEqual(200)
   })
 
-  it('hat einzigartige IDs über beide Stapel', () => {
-    const ids = [...ADULT_DECK, ...KIDS_DECK].map((card) => card.id)
+  it('hat einzigartige IDs', () => {
+    const ids = ADULT_DECK.map((card) => card.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('hat pro Achse mindestens 2 Karten und eine Einheit', () => {
-    for (const deck of [ADULT_DECK, KIDS_DECK]) {
-      for (const axis of axesInDeck(deck)) {
-        const group = cardsOfAxis(deck, axis)
-        expect(group.length).toBeGreaterThanOrEqual(2)
-        expect(new Set(group.map((card) => card.unit)).size).toBe(1)
-      }
+    for (const axis of axesInDeck(ADULT_DECK)) {
+      const group = cardsOfAxis(ADULT_DECK, axis)
+      expect(group.length).toBeGreaterThanOrEqual(2)
+      expect(new Set(group.map((card) => card.unit)).size).toBe(1)
     }
   })
 
@@ -74,13 +75,13 @@ describe('Deck', () => {
       'power',
       'calories',
     ]
-    for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
+    for (const card of ADULT_DECK) {
       expect(axes).toContain(card.axis)
     }
   })
 
   it('hat keine Elektronik-Preise', () => {
-    for (const card of [...ADULT_DECK, ...KIDS_DECK]) {
+    for (const card of ADULT_DECK) {
       expect(card.axis).not.toBe('price')
       expect(card.unit).not.toBe('€')
     }
@@ -94,10 +95,6 @@ describe('Deck', () => {
     expect(ADULT_DECK.find((card) => card.id === 'picasso')?.value).toBe(1881)
     expect(ADULT_DECK.find((card) => card.id === 'vangogh')?.value).toBe(1853)
     expect(ADULT_DECK.find((card) => card.id === 'bach')?.value).toBe(1685)
-    expect(KIDS_DECK.find((card) => card.id === 'k-mozart')?.value).toBe(1756)
-    expect(KIDS_DECK.find((card) => card.id === 'k-beethoven')?.value).toBe(1770)
-    expect(KIDS_DECK.find((card) => card.id === 'k-bach')?.value).toBe(1685)
-    expect(KIDS_DECK.find((card) => card.id === 'k-picasso')?.value).toBe(1881)
   })
 
   it('enthält die vorgesehenen Vergleichspaare', () => {
@@ -107,13 +104,6 @@ describe('Deck', () => {
     expect(ADULT_DECK.find((card) => card.id === 'tschechien')?.value).toBe(78871)
     expect(ADULT_DECK.find((card) => card.id === 'eiffelturm-hoehe')?.value).toBe(330)
     expect(ADULT_DECK.find((card) => card.id === 'empire-state')?.value).toBe(443)
-    expect(KIDS_DECK.find((card) => card.id === 'k-eiffel')?.value).toBe(330)
-    expect(KIDS_DECK.find((card) => card.id === 'k-dom')?.value).toBe(157)
-    expect(KIDS_DECK.find((card) => card.id === 'k-tiger')?.value).toBeGreaterThan(
-      KIDS_DECK.find((card) => card.id === 'k-loewe')?.value ?? 0,
-    )
-    expect(KIDS_DECK.find((card) => card.id === 'k-de')?.value).toBe(84)
-    expect(KIDS_DECK.find((card) => card.id === 'k-it')?.value).toBe(59)
   })
 })
 
@@ -324,5 +314,46 @@ describe('Turnier-Helfer', () => {
   it('weiß, wann ein Opening-Paar möglich ist', () => {
     expect(canFormOpeningPair(miniDeck)).toBe(true)
     expect(canFormOpeningPair([kg('a', 1)])).toBe(false)
+  })
+
+  it('zählt Überlebende und springt ausgeschiedene Spieler', () => {
+    const players = [
+      { id: 'p1', name: 'Max' },
+      { id: 'p2', name: 'Nils' },
+      { id: 'p3', name: 'Anna' },
+    ]
+    const lives = initPlayerLives(players, 3)
+    lives.p2 = 0
+    expect(aliveCount(lives)).toBe(2)
+    expect(nextAliveIndex(players, lives, 0)).toBe(2)
+    expect(soleSurvivorId({ p1: 0, p2: 2, p3: 0 })).toBe('p2')
+  })
+
+  it('endet Versus wenn nur noch einer Leben hat', () => {
+    const players = [
+      { id: 'p1', name: 'Max' },
+      { id: 'p2', name: 'Nils' },
+    ]
+    const result = resolveGuess({
+      current: kg('a', 10),
+      next: kg('b', 20),
+      remaining: [kg('c', 30), m('d', 100), m('e', 300)],
+      catalog: miniDeck,
+      lives: 3,
+      streak: 0,
+      currentPlayerIndex: 0,
+      playerCount: 2,
+      guess: 'lower',
+      turnNonce: 1,
+      density: 'locker',
+      pick: pickFirst,
+      playStyle: 'versus',
+      players,
+      playerLives: { p1: 1, p2: 2 },
+    })
+    expect(result.gameStatus).toBe('game_over')
+    expect(result.winnerId).toBe('p2')
+    expect(result.playerLives.p1).toBe(0)
+    expect(result.streak).toBe(0)
   })
 })

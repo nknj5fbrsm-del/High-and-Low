@@ -1,6 +1,6 @@
 export type Guess = 'higher' | 'lower'
 export type GameStatus = 'lobby' | 'playing' | 'game_over'
-export type GameMode = 'adult' | 'kids'
+export type PlayStyle = 'team' | 'versus'
 export type Density = 'locker' | 'knackig' | 'haarscharf'
 export type Axis =
   | 'weight'
@@ -39,7 +39,7 @@ export interface LastResult {
   resolved_at?: string
 }
 
-export type ModeVotes = Record<string, GameMode>
+export type PlayerLives = Record<string, number>
 
 export interface RoomState {
   room_code: string
@@ -56,8 +56,9 @@ export interface RoomState {
   last_result: LastResult | null
   turn_nonce: number
   max_players: number
-  votes: ModeVotes
-  selected_mode: GameMode
+  play_style: PlayStyle
+  player_lives: PlayerLives
+  winner_id: string | null
   selected_density: Density
 }
 
@@ -72,5 +73,4 @@ export const MAX_PLAYERS = 6
 export const DEFAULT_PLAYERS = 3
 export const SOLO_PLAYERS = 1
 export const MAX_LIVES = 3
-export const KIDS_LIVES = 5
 export const REVEAL_MS = 1700
