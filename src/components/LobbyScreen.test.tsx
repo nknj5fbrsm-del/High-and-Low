@@ -118,11 +118,15 @@ describe('LobbyScreen', () => {
         room={null}
         storedRoomCode="ABCD"
         playerId="p1"
-        error="Keine Verbindung. Prüfe Netz und Supabase-URL."
+        error="Keine Verbindung zur Datenbank. Oft ist Supabase pausiert — im Dashboard auf „Resume project“ tippen."
         onLeave={onLeave}
       />,
     )
-    expect(screen.getByText('Keine Verbindung. Prüfe Netz und Supabase-URL.')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Keine Verbindung zur Datenbank. Oft ist Supabase pausiert — im Dashboard auf „Resume project“ tippen.',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument()
     const leave = screen.getByRole('button', { name: 'Tisch verlassen' })
     expect(leave).toHaveClass('h-14')

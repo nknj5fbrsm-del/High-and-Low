@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { normalizeRoomCode, trimName } from '../format.ts'
 import { loadIdentity, saveIdentity } from '../lib/identity.ts'
+import { rpcMessage } from '../lib/rpcMessage.ts'
 import { supabase } from '../lib/supabase.ts'
 import { normalizeDensity } from '../density.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
@@ -22,14 +23,6 @@ function asRoom(data: unknown): RoomState {
     winner_id: row.winner_id ?? null,
     selected_density: normalizeDensity(row.selected_density),
   }
-}
-
-function rpcMessage(error: { message: string }): string {
-  const message = error.message.replace(/^.*ERROR:\s*/i, '').trim()
-  if (message.toLowerCase().includes('fetch') || message.toLowerCase().includes('network')) {
-    return 'Keine Verbindung. Prüfe Netz und Supabase-URL.'
-  }
-  return message || 'Etwas ist schiefgelaufen.'
 }
 
 export function useRoom() {
