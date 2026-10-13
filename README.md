@@ -43,3 +43,12 @@ npm test
 
 - Raumcode ist das Passwort zum Tisch. Keine Accounts, kein Chat, kein Timer.
 - Ein vierter (bzw. überzähliger) Join wird abgelehnt.
+
+## Supabase pausiert?
+
+Free-Projekte pausieren nach ~7 Tagen ohne DB-Aktivität. Die Vercel-Seite lädt weiter, Spielen geht nicht.
+
+1. [Supabase Dashboard](https://supabase.com/dashboard) → Projekt öffnen → **Resume project** (1–2 Min.).
+2. Danach neu laden und weiterspielen.
+
+Gegen erneutes Pausieren läuft GitHub Action `Supabase keep-alive` (Di + Fr). Manuell: Repo → Actions → **Supabase keep-alive** → **Run workflow**.
