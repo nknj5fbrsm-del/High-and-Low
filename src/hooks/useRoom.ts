@@ -4,6 +4,13 @@ import { loadIdentity, saveIdentity } from '../lib/identity.ts'
 import { rpcMessage } from '../lib/rpcMessage.ts'
 import { supabase } from '../lib/supabase.ts'
 import { normalizeDensity } from '../density.ts'
+import {
+  applyLocalGuess,
+  openSoloRoom,
+  readLocalRoom,
+  restartLocalRoom,
+  writeLocalRoom,
+} from '../lib/localRoom.ts'
 import { DEFAULT_PLAYERS, MAX_PLAYERS, MIN_PLAYERS } from '../types.ts'
 import type { Density, Guess, Player, PlayStyle, RoomState } from '../types.ts'
 
@@ -25,9 +32,13 @@ function asRoom(data: unknown): RoomState {
   }
 }
 
+const TABLE_OFFLINE = 'Zu mehreren braucht den gemeinsamen Tisch. Allein geht sofort.'
+
 export function useRoom() {
   const [identity, setIdentity] = useState(() => loadIdentity())
-  const [room, setRoom] = useState<RoomState | null>(null)
+  const [room, setRoom] = useState<RoomState | null>(() =>
+    supabase ? null : readLocalRoom(loadIdentity().playerId),
+  )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [restoring, setRestoring] = useState(
@@ -153,6 +164,10 @@ export function useRoom() {
       const trimmed = trimName(name)
       const clamped = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(maxPlayers)))
       setIdentity(saveIdentity({ name: trimmed }))
+      if (!supabase) {
+        setError(TABLE_OFFLINE)
+        return
+      }
       await runRpc('create_room', {
         p_player_id: playerId,
         p_name: trimmed,
@@ -167,6 +182,10 @@ export function useRoom() {
       const trimmed = trimName(name)
       const roomCode = normalizeRoomCode(code)
       setIdentity(saveIdentity({ name: trimmed }))
+      if (!supabase) {
+        setError(TABLE_OFFLINE)
+        return
+      }
       await runRpc('join_room', {
         p_room_code: roomCode,
         p_player_id: playerId,
@@ -188,6 +207,23 @@ export function useRoom() {
     async (name: string, density: Density = 'knackig') => {
       const trimmed = trimName(name)
       setIdentity(saveIdentity({ name: trimmed }))
+      if (!supabase) {
+        setBusy(true)
+        setError(null)
+        try {
+          const next = openSoloRoom({
+            playerId,
+            name: trimmed,
+            density: normalizeDensity(density),
+          })
+          setRoom(next)
+          writeLocalRoom(next)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Solo konnte nicht starten.')
+        }
+        setBusy(false)
+        return
+      }
       await runRpc('start_solo', {
         p_player_id: playerId,
         p_name: trimmed,
@@ -224,6 +260,19 @@ export function useRoom() {
   const submitGuess = useCallback(
     async (guess: Guess) => {
       if (!room) return
+      if (!supabase) {
+        setBusy(true)
+        setError(null)
+        try {
+          const next = applyLocalGuess(room, playerId, guess)
+          setRoom(next)
+          writeLocalRoom(next)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Tipp konnte nicht gewertet werden.')
+        }
+        setBusy(false)
+        return
+      }
       await runRpc('submit_guess', {
         p_room_code: room.room_code,
         p_player_id: playerId,
@@ -236,6 +285,19 @@ export function useRoom() {
 
   const restartGame = useCallback(async () => {
     if (!room) return
+    if (!supabase) {
+      setBusy(true)
+      setError(null)
+      try {
+        const next = restartLocalRoom(room)
+        setRoom(next)
+        writeLocalRoom(next)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Neustart fehlgeschlagen.')
+      }
+      setBusy(false)
+      return
+    }
     await runRpc('restart_game', { p_room_code: room.room_code, p_player_id: playerId })
   }, [playerId, room, runRpc])
 
@@ -243,6 +305,7 @@ export function useRoom() {
     setRoom(null)
     setError(null)
     setRestoring(false)
+    writeLocalRoom(null)
     setIdentity(saveIdentity({ roomCode: null }))
   }, [])
 

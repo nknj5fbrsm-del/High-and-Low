@@ -28,6 +28,7 @@ export function LobbyScreen({
   onSetDensity,
   onSetPlayStyle,
   onLeave,
+  tableOnline = true,
 }: {
   name: string
   onNameChange: (value: string) => void
@@ -45,6 +46,7 @@ export function LobbyScreen({
   onSetDensity: (density: Density) => void
   onSetPlayStyle: (style: PlayStyle) => void
   onLeave: () => void
+  tableOnline?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const [maxPlayers, setMaxPlayers] = useState(DEFAULT_PLAYERS)
@@ -133,7 +135,7 @@ export function LobbyScreen({
               {copied ? 'Code kopiert.' : 'Tippen zum Kopieren · an die anderen weitergeben'}
             </p>
           </section>
-        ) : !inRoom ? (
+        ) : !inRoom && tableOnline ? (
           <>
             <div className="relative py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-khaki">
               oder zu zweit bis sechst
@@ -195,6 +197,10 @@ export function LobbyScreen({
               Raum beitreten
             </button>
           </>
+        ) : !inRoom ? (
+          <p className="text-sm text-khaki">
+            Zu mehreren braucht den gemeinsamen Tisch. Allein geht auf diesem Gerät.
+          </p>
         ) : null}
 
         {inRoom && room && !soloRoom && (

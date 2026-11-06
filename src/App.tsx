@@ -5,7 +5,6 @@ import { GameOverScreen } from './components/GameOverScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
 import { LeaveRoomButton } from './components/LeaveRoomButton.tsx'
 import { LobbyScreen } from './components/LobbyScreen.tsx'
-import { SetupScreen } from './components/SetupScreen.tsx'
 import { useRoom } from './hooks/useRoom.ts'
 import { noteSoloStreak } from './lib/identity.ts'
 import { isSupabaseConfigured } from './lib/supabase.ts'
@@ -62,6 +61,7 @@ export function AppView({ game }: { game: GameSession }) {
         onSetDensity={(density) => void game.setDensity(density)}
         onSetPlayStyle={(style) => void game.setPlayStyle(style)}
         onLeave={game.leaveRoom}
+        tableOnline={isSupabaseConfigured}
       />
     )
   }
@@ -103,10 +103,5 @@ export function AppView({ game }: { game: GameSession }) {
 
 export default function App() {
   const game = useRoom()
-
-  if (!isSupabaseConfigured) {
-    return <SetupScreen />
-  }
-
   return <AppView game={game} />
 }

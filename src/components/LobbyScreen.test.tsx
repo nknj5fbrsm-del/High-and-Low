@@ -174,6 +174,21 @@ describe('LobbyScreen', () => {
     expect(onCreate).toHaveBeenCalledWith(5)
   })
 
+  it('versteckt den gemeinsamen Tisch, wenn er offline ist', () => {
+    render(
+      <LobbyScreen
+        {...lobbyProps}
+        name="Nils"
+        room={null}
+        playerId="p1"
+        tableOnline={false}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Solo starten' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Raum erstellen' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Allein geht auf diesem Gerät/)).toBeInTheDocument()
+  })
+
   it('lässt den Host Team oder Gegeneinander wählen', () => {
     const onSetPlayStyle = vi.fn()
     render(
