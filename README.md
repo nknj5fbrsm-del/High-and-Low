@@ -50,5 +50,6 @@ Free-Projekte pausieren nach ~7 Tagen ohne DB-Aktivität. Die Vercel-Seite lädt
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) → Projekt öffnen → **Resume project** (1–2 Min.).
 2. Danach neu laden und weiterspielen.
+3. Optional einmal manuell: Repo → Actions → **Supabase keep-alive** → **Run workflow** (stellt sicher, dass der Ping nach dem Resume wieder grün ist).
 
-Gegen erneutes Pausieren läuft GitHub Action `Supabase keep-alive` (Di + Fr). Manuell: Repo → Actions → **Supabase keep-alive** → **Run workflow**.
+Gegen erneutes Pausieren pingt GitHub Action `Supabase keep-alive` die `rooms`-API **2× täglich**. Der Cron von GitHub kann Stunden verspätet laufen; ein bereits pausiertes Projekt weckt die Action **nicht** — dafür braucht es Resume im Dashboard. Lokal: `npm run keepalive`.

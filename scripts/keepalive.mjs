@@ -33,16 +33,35 @@ if (!rawUrl || !key) {
 const base = rawUrl.replace(/\/$/, '').replace(/\/rest\/v1$/, '')
 const target = `${base}/rest/v1/rooms?select=room_code&limit=1`
 
-const res = await fetch(target, {
-  headers: {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    Accept: 'application/json',
-  },
-})
+const maxAttempts = 5
+let lastStatus = 0
+let lastBody = ''
 
-const body = await res.text()
-console.log(`HTTP ${res.status}`)
-console.log(body.slice(0, 400))
-if (!res.ok) process.exit(1)
-console.log('Keepalive ok')
+for (let i = 1; i <= maxAttempts; i++) {
+  const res = await fetch(target, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: 'application/json',
+      Prefer: 'count=exact',
+    },
+  })
+  lastStatus = res.status
+  lastBody = await res.text()
+  console.log(`Versuch ${i}: HTTP ${lastStatus}`)
+  console.log(lastBody.slice(0, 400))
+  if (res.ok) {
+    console.log('Keepalive ok')
+    process.exit(0)
+  }
+  if (i < maxAttempts) {
+    await new Promise((r) => setTimeout(r, i * 20_000))
+  }
+}
+
+if (lastStatus === 521 || lastStatus === 546) {
+  console.error('Projekt pausiert oder Origin down — im Supabase-Dashboard Resume tippen.')
+} else {
+  console.error(`Keepalive failed — HTTP ${lastStatus}`)
+}
+process.exit(1)
